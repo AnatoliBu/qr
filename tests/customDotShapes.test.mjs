@@ -349,12 +349,16 @@ test("expandInnerEyeClipRects enlarges square clips without compounding", () => 
     y: 77,
     width: 51,
     height: 51,
+    rx: 4,
+    ry: 4,
   });
   const clippedRect = createRect({
     width: 51,
     height: 51,
     x: 77,
     y: 77,
+    rx: 3,
+    ry: 3,
     clipPath: "url('#clip-path-corners-dot-color-0-0-1')",
   });
   const { svg } = createSvgWithClipPaths([clipPath], [clippedRect]);
@@ -367,12 +371,16 @@ test("expandInnerEyeClipRects enlarges square clips without compounding", () => 
   assert.equal(rect.getAttribute("height"), "56.100");
   assert.equal(rect.getAttribute("x"), "74.450");
   assert.equal(rect.getAttribute("y"), "74.450");
+  assert.equal(rect.getAttribute("rx"), "0");
+  assert.equal(rect.getAttribute("ry"), "0");
   assert.equal(rect.getAttribute("data-strengthened"), "1");
 
   assert.equal(clippedRect.getAttribute("width"), "56.100");
   assert.equal(clippedRect.getAttribute("height"), "56.100");
   assert.equal(clippedRect.getAttribute("x"), "74.450");
   assert.equal(clippedRect.getAttribute("y"), "74.450");
+  assert.equal(clippedRect.getAttribute("rx"), "0");
+  assert.equal(clippedRect.getAttribute("ry"), "0");
   assert.equal(clippedRect.getAttribute("data-strengthened"), "1");
 
   const prevX = rect.getAttribute("x");

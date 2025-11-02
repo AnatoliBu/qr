@@ -274,15 +274,8 @@ function expandInnerEyeClipRects(svg, overshoot = 1.08) {
     rect.setAttribute("width", nextWidth);
     rect.setAttribute("height", nextHeight);
 
-    const rx = Number(rect.getAttribute("rx"));
-    if (Number.isFinite(rx) && rx > 0) {
-      rect.setAttribute("rx", Math.min(newWidth / 2, rx * overshoot).toFixed(3));
-    }
-
-    const ry = Number(rect.getAttribute("ry"));
-    if (Number.isFinite(ry) && ry > 0) {
-      rect.setAttribute("ry", Math.min(newHeight / 2, ry * overshoot).toFixed(3));
-    }
+    rect.setAttribute("rx", "0");
+    rect.setAttribute("ry", "0");
 
     rect.setAttribute("data-strengthened", "1");
 
@@ -316,15 +309,8 @@ function expandInnerEyeClipRects(svg, overshoot = 1.08) {
       node.setAttribute("width", nextWidth);
       node.setAttribute("height", nextHeight);
 
-      const nodeRx = Number(node.getAttribute("rx"));
-      if (Number.isFinite(nodeRx) && nodeRx > 0) {
-        node.setAttribute("rx", Math.min(newWidth / 2, nodeRx * overshoot).toFixed(3));
-      }
-
-      const nodeRy = Number(node.getAttribute("ry"));
-      if (Number.isFinite(nodeRy) && nodeRy > 0) {
-        node.setAttribute("ry", Math.min(newHeight / 2, nodeRy * overshoot).toFixed(3));
-      }
+      node.setAttribute("rx", "0");
+      node.setAttribute("ry", "0");
 
       node.setAttribute("data-strengthened", "1");
     });
