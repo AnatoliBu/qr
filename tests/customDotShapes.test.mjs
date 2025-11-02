@@ -11,7 +11,16 @@ import {
   strengthenInnerEyeClipPaths,
 } from "../src/lib/qrCustomShapes.mjs";
 
-const createRect = ({ width, height, x = 0, y = 0, fill = "#000000" }) => {
+const createRect = ({
+  width,
+  height,
+  x = 0,
+  y = 0,
+  fill = "#000000",
+  rx,
+  ry,
+  clipPath,
+}) => {
   const attributes = new Map([
     ["width", String(width)],
     ["height", String(height)],
@@ -19,6 +28,18 @@ const createRect = ({ width, height, x = 0, y = 0, fill = "#000000" }) => {
     ["y", String(y)],
     ["fill", fill],
   ]);
+
+  if (typeof rx === "number") {
+    attributes.set("rx", String(rx));
+  }
+
+  if (typeof ry === "number") {
+    attributes.set("ry", String(ry));
+  }
+
+  if (clipPath) {
+    attributes.set("clip-path", clipPath);
+  }
 
   return {
     tagName: "rect",
@@ -74,6 +95,9 @@ const createSvg = (rects) => {
     querySelectorAll(selector) {
       if (selector === "rect") {
         return rects;
+      }
+      if (selector === "[clip-path]") {
+        return rects.filter((rect) => Boolean(rect.getAttribute("clip-path")));
       }
       return [];
     },
@@ -173,7 +197,7 @@ const createClipPath = ({
   return clipPath;
 };
 
-const createSvgWithClipPaths = (clipPaths) => {
+const createSvgWithClipPaths = (clipPaths, clippedElements = []) => {
   const created = [];
 
   const svg = {
@@ -198,6 +222,9 @@ const createSvgWithClipPaths = (clipPaths) => {
     querySelectorAll(selector) {
       if (selector === "clipPath[id*='clip-path-corners-dot']") {
         return clipPaths;
+      }
+      if (selector === "[clip-path]") {
+        return clippedElements;
       }
       return [];
     },
@@ -323,7 +350,14 @@ test("expandInnerEyeClipRects enlarges square clips without compounding", () => 
     width: 51,
     height: 51,
   });
-  const { svg } = createSvgWithClipPaths([clipPath]);
+  const clippedRect = createRect({
+    width: 51,
+    height: 51,
+    x: 77,
+    y: 77,
+    clipPath: "url('#clip-path-corners-dot-color-0-0-1')",
+  });
+  const { svg } = createSvgWithClipPaths([clipPath], [clippedRect]);
 
   expandInnerEyeClipRects(svg, 1.1);
 
@@ -335,10 +369,21 @@ test("expandInnerEyeClipRects enlarges square clips without compounding", () => 
   assert.equal(rect.getAttribute("y"), "74.450");
   assert.equal(rect.getAttribute("data-strengthened"), "1");
 
+  assert.equal(clippedRect.getAttribute("width"), "56.100");
+  assert.equal(clippedRect.getAttribute("height"), "56.100");
+  assert.equal(clippedRect.getAttribute("x"), "74.450");
+  assert.equal(clippedRect.getAttribute("y"), "74.450");
+  assert.equal(clippedRect.getAttribute("data-strengthened"), "1");
+
   const prevX = rect.getAttribute("x");
   const prevY = rect.getAttribute("y");
   const prevWidth = rect.getAttribute("width");
   const prevHeight = rect.getAttribute("height");
+
+  const prevRectX = clippedRect.getAttribute("x");
+  const prevRectY = clippedRect.getAttribute("y");
+  const prevRectWidth = clippedRect.getAttribute("width");
+  const prevRectHeight = clippedRect.getAttribute("height");
 
   expandInnerEyeClipRects(svg, 1.1);
 
@@ -346,6 +391,11 @@ test("expandInnerEyeClipRects enlarges square clips without compounding", () => 
   assert.equal(rect.getAttribute("y"), prevY);
   assert.equal(rect.getAttribute("width"), prevWidth);
   assert.equal(rect.getAttribute("height"), prevHeight);
+
+  assert.equal(clippedRect.getAttribute("x"), prevRectX);
+  assert.equal(clippedRect.getAttribute("y"), prevRectY);
+  assert.equal(clippedRect.getAttribute("width"), prevRectWidth);
+  assert.equal(clippedRect.getAttribute("height"), prevRectHeight);
 });
 
 test("strengthenInnerEyeClipPaths replaces circular clips with enlarged paths", () => {

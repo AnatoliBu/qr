@@ -264,11 +264,15 @@ function expandInnerEyeClipRects(svg, overshoot = 1.08) {
     const centerY = y + height / 2;
     const newWidth = width * overshoot;
     const newHeight = height * overshoot;
+    const nextX = (centerX - newWidth / 2).toFixed(3);
+    const nextY = (centerY - newHeight / 2).toFixed(3);
+    const nextWidth = newWidth.toFixed(3);
+    const nextHeight = newHeight.toFixed(3);
 
-    rect.setAttribute("x", (centerX - newWidth / 2).toFixed(3));
-    rect.setAttribute("y", (centerY - newHeight / 2).toFixed(3));
-    rect.setAttribute("width", newWidth.toFixed(3));
-    rect.setAttribute("height", newHeight.toFixed(3));
+    rect.setAttribute("x", nextX);
+    rect.setAttribute("y", nextY);
+    rect.setAttribute("width", nextWidth);
+    rect.setAttribute("height", nextHeight);
 
     const rx = Number(rect.getAttribute("rx"));
     if (Number.isFinite(rx) && rx > 0) {
@@ -281,6 +285,49 @@ function expandInnerEyeClipRects(svg, overshoot = 1.08) {
     }
 
     rect.setAttribute("data-strengthened", "1");
+
+    const clipId = clipPath.getAttribute("id");
+    if (!clipId) {
+      return;
+    }
+
+    const clippedNodes = Array.from(svg.querySelectorAll("[clip-path]"));
+
+    clippedNodes.forEach((node) => {
+      if (!node || typeof node.getAttribute !== "function" || typeof node.setAttribute !== "function") {
+        return;
+      }
+
+      const clipPathAttr = node.getAttribute("clip-path");
+      if (!clipPathAttr || !clipPathAttr.includes(`#${clipId}`)) {
+        return;
+      }
+
+      if (node.getAttribute("data-strengthened") === "1") {
+        return;
+      }
+
+      if (node.tagName !== "rect") {
+        return;
+      }
+
+      node.setAttribute("x", nextX);
+      node.setAttribute("y", nextY);
+      node.setAttribute("width", nextWidth);
+      node.setAttribute("height", nextHeight);
+
+      const nodeRx = Number(node.getAttribute("rx"));
+      if (Number.isFinite(nodeRx) && nodeRx > 0) {
+        node.setAttribute("rx", Math.min(newWidth / 2, nodeRx * overshoot).toFixed(3));
+      }
+
+      const nodeRy = Number(node.getAttribute("ry"));
+      if (Number.isFinite(nodeRy) && nodeRy > 0) {
+        node.setAttribute("ry", Math.min(newHeight / 2, nodeRy * overshoot).toFixed(3));
+      }
+
+      node.setAttribute("data-strengthened", "1");
+    });
   });
 }
 
