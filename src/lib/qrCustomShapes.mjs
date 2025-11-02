@@ -230,6 +230,60 @@ function strengthenInnerEyeClipPaths(svg, overshoot = 1.12, exponent = 4) {
   });
 }
 
+function expandInnerEyeClipRects(svg, overshoot = 1.08) {
+  if (!svg || typeof svg.querySelectorAll !== "function") {
+    return;
+  }
+
+  const clipPaths = svg.querySelectorAll("clipPath[id*='clip-path-corners-dot']");
+
+  clipPaths.forEach((clipPath) => {
+    const rect = clipPath.querySelector("rect");
+    if (!rect) {
+      return;
+    }
+
+    if (rect.getAttribute("data-strengthened") === "1") {
+      return;
+    }
+
+    const width = Number(rect.getAttribute("width"));
+    const height = Number(rect.getAttribute("height"));
+    const x = Number(rect.getAttribute("x"));
+    const y = Number(rect.getAttribute("y"));
+
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return;
+    }
+
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return;
+    }
+
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+    const newWidth = width * overshoot;
+    const newHeight = height * overshoot;
+
+    rect.setAttribute("x", (centerX - newWidth / 2).toFixed(3));
+    rect.setAttribute("y", (centerY - newHeight / 2).toFixed(3));
+    rect.setAttribute("width", newWidth.toFixed(3));
+    rect.setAttribute("height", newHeight.toFixed(3));
+
+    const rx = Number(rect.getAttribute("rx"));
+    if (Number.isFinite(rx) && rx > 0) {
+      rect.setAttribute("rx", Math.min(newWidth / 2, rx * overshoot).toFixed(3));
+    }
+
+    const ry = Number(rect.getAttribute("ry"));
+    if (Number.isFinite(ry) && ry > 0) {
+      rect.setAttribute("ry", Math.min(newHeight / 2, ry * overshoot).toFixed(3));
+    }
+
+    rect.setAttribute("data-strengthened", "1");
+  });
+}
+
 export {
   SVG_NS,
   clampSpacing,
@@ -238,4 +292,5 @@ export {
   applyCustomDotShape,
   isCustomDotShapeSupported,
   strengthenInnerEyeClipPaths,
+  expandInnerEyeClipRects,
 };

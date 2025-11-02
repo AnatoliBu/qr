@@ -13,6 +13,7 @@ import {
   applyDotSpacing,
   clampSpacing,
   CUSTOM_DOT_SHAPES,
+  expandInnerEyeClipRects,
   isCustomDotShapeSupported,
   strengthenInnerEyeClipPaths,
 } from "@/lib/qrCustomShapes.mjs";
@@ -126,7 +127,9 @@ function spacingExtension(svg: SVGElement, options: any) {
   const spacing = clampSpacing(Number(options.moduleSpacing ?? 0));
   const customShape = options.customDotShape;
   const customEyeShape = options.customEyeShape;
-  const eyeInnerType = options.eyeInnerType;
+  const dotType = options.dotStyle ?? options.dotsOptions?.type;
+  const eyeOuterType = options.eyeOuterType ?? options.cornersSquareOptions?.type;
+  const eyeInnerType = options.eyeInnerType ?? options.cornersDotOptions?.type;
 
   const rects = Array.from(svg.querySelectorAll("rect")) as SVGElement[];
   let moduleSize = Infinity;
@@ -175,6 +178,8 @@ function spacingExtension(svg: SVGElement, options: any) {
 
   if (eyeInnerType === "dot") {
     strengthenInnerEyeClipPaths(svg);
+  } else if (dotType === "dots" && eyeInnerType === "square" && eyeOuterType === "extra-rounded") {
+    expandInnerEyeClipRects(svg);
   }
 
   ensureCircleLogo(svg, options);
@@ -644,7 +649,9 @@ export function GeneratorNew() {
           ...opts,
           customDotShape: draft.style.customDotShape,
           customEyeShape: draft.style.customEyeShape,
-          eyeInnerType: draft.style.eyeInner
+          eyeInnerType: draft.style.eyeInner,
+          eyeOuterType: draft.style.eyeOuter,
+          dotStyle: draft.style.dotStyle
         })
       );
       schedulePreviewFit();
@@ -778,7 +785,9 @@ export function GeneratorNew() {
           ...opts,
           customDotShape: draft.style.customDotShape,
           customEyeShape: draft.style.customEyeShape,
-          eyeInnerType: draft.style.eyeInner
+          eyeInnerType: draft.style.eyeInner,
+          eyeOuterType: draft.style.eyeOuter,
+          dotStyle: draft.style.dotStyle
         })
       );
       schedulePreviewFit();
@@ -881,7 +890,9 @@ export function GeneratorNew() {
             ...opts,
             customDotShape: draft.style.customDotShape,
             customEyeShape: draft.style.customEyeShape,
-            eyeInnerType: draft.style.eyeInner
+            eyeInnerType: draft.style.eyeInner,
+            eyeOuterType: draft.style.eyeOuter,
+            dotStyle: draft.style.dotStyle
           })
         );
 

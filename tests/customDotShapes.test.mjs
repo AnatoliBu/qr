@@ -6,6 +6,7 @@ import {
   applyDotSpacing,
   clampSpacing,
   CUSTOM_DOT_SHAPES,
+  expandInnerEyeClipRects,
   isCustomDotShapeSupported,
   strengthenInnerEyeClipPaths,
 } from "../src/lib/qrCustomShapes.mjs";
@@ -81,45 +82,32 @@ const createSvg = (rects) => {
   return { svg, parentNode, replacements, created };
 };
 
-const createClipPath = ({ id, cx, cy, r, transform = "" }) => {
+const createClipPath = ({
+  id,
+  cx,
+  cy,
+  r,
+  transform = "",
+  shape = "circle",
+  x,
+  y,
+  width,
+  height,
+  rx,
+  ry,
+}) => {
   const attrs = new Map([["id", id]]);
-  const circleAttrs = new Map([
-    ["cx", String(cx)],
-    ["cy", String(cy)],
-    ["r", String(r)],
-  ]);
-  if (transform) {
-    circleAttrs.set("transform", transform);
-  }
-
-  const circle = {
-    tagName: "circle",
-    parentNode: null,
-    attributes: circleAttrs,
-    getAttribute(name) {
-      return circleAttrs.get(name) ?? null;
-    },
-    setAttribute(name, value) {
-      circleAttrs.set(name, String(value));
-    },
-  };
 
   const clipPath = {
     tagName: "clipPath",
     attributes: attrs,
-    childNodes: [circle],
+    childNodes: [],
     parentNode: null,
     getAttribute(name) {
       return attrs.get(name) ?? null;
     },
     querySelector(selector) {
-      if (selector === "circle") {
-        return this.childNodes.find((node) => node.tagName === "circle") ?? null;
-      }
-      if (selector === "path") {
-        return this.childNodes.find((node) => node.tagName === "path") ?? null;
-      }
-      return null;
+      return this.childNodes.find((node) => node.tagName === selector) ?? null;
     },
     replaceChildren(node) {
       this.childNodes = [node];
@@ -127,7 +115,60 @@ const createClipPath = ({ id, cx, cy, r, transform = "" }) => {
     },
   };
 
-  circle.parentNode = clipPath;
+  if (shape === "rect") {
+    const rectAttrs = new Map([
+      ["x", String(x)],
+      ["y", String(y)],
+      ["width", String(width)],
+      ["height", String(height)],
+    ]);
+    if (typeof rx === "number") {
+      rectAttrs.set("rx", String(rx));
+    }
+    if (typeof ry === "number") {
+      rectAttrs.set("ry", String(ry));
+    }
+    if (transform) {
+      rectAttrs.set("transform", transform);
+    }
+
+    const rect = {
+      tagName: "rect",
+      parentNode: clipPath,
+      attributes: rectAttrs,
+      getAttribute(name) {
+        return rectAttrs.get(name) ?? null;
+      },
+      setAttribute(name, value) {
+        rectAttrs.set(name, String(value));
+      },
+    };
+
+    clipPath.childNodes.push(rect);
+  } else {
+    const circleAttrs = new Map([
+      ["cx", String(cx)],
+      ["cy", String(cy)],
+      ["r", String(r)],
+    ]);
+    if (transform) {
+      circleAttrs.set("transform", transform);
+    }
+
+    const circle = {
+      tagName: "circle",
+      parentNode: clipPath,
+      attributes: circleAttrs,
+      getAttribute(name) {
+        return circleAttrs.get(name) ?? null;
+      },
+      setAttribute(name, value) {
+        circleAttrs.set(name, String(value));
+      },
+    };
+
+    clipPath.childNodes.push(circle);
+  }
 
   return clipPath;
 };
@@ -271,6 +312,40 @@ test("applyCustomDotShape only transforms rects accepted by filter", () => {
   assert.equal(replacements[0].oldNode, rectSmall);
   assert.equal(rectLarge.tagName, "rect");
   assert.equal(rectLarge.getAttribute("fill"), "#111");
+});
+
+test("expandInnerEyeClipRects enlarges square clips without compounding", () => {
+  const clipPath = createClipPath({
+    id: "clip-path-corners-dot-color-0-0-1",
+    shape: "rect",
+    x: 77,
+    y: 77,
+    width: 51,
+    height: 51,
+  });
+  const { svg } = createSvgWithClipPaths([clipPath]);
+
+  expandInnerEyeClipRects(svg, 1.1);
+
+  const rect = clipPath.querySelector("rect");
+  assert.ok(rect, "clip path should include a rect");
+  assert.equal(rect.getAttribute("width"), "56.100");
+  assert.equal(rect.getAttribute("height"), "56.100");
+  assert.equal(rect.getAttribute("x"), "74.450");
+  assert.equal(rect.getAttribute("y"), "74.450");
+  assert.equal(rect.getAttribute("data-strengthened"), "1");
+
+  const prevX = rect.getAttribute("x");
+  const prevY = rect.getAttribute("y");
+  const prevWidth = rect.getAttribute("width");
+  const prevHeight = rect.getAttribute("height");
+
+  expandInnerEyeClipRects(svg, 1.1);
+
+  assert.equal(rect.getAttribute("x"), prevX);
+  assert.equal(rect.getAttribute("y"), prevY);
+  assert.equal(rect.getAttribute("width"), prevWidth);
+  assert.equal(rect.getAttribute("height"), prevHeight);
 });
 
 test("strengthenInnerEyeClipPaths replaces circular clips with enlarged paths", () => {

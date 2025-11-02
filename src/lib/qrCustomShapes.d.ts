@@ -29,3 +29,4 @@ export declare function strengthenInnerEyeClipPaths(
   overshoot?: number,
   exponent?: number
 ): void;
+export declare function expandInnerEyeClipRects(svg: SVGElement, overshoot?: number): void;
