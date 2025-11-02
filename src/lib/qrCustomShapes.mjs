@@ -44,6 +44,43 @@ function applyDotSpacing(svg, spacing, filter) {
 
 const INNER_EYE_CLIP_FRAGMENT = "clip-path-corners-dot";
 
+function collectInnerEyeClipRectBounds(svg) {
+  if (!svg || typeof svg.querySelectorAll !== "function") {
+    return [];
+  }
+
+  const clipRects = svg.querySelectorAll("clipPath[id*='clip-path-corners-dot'] rect");
+
+  const bounds = [];
+
+  Array.from(clipRects).forEach((rect) => {
+    if (!rect || typeof rect.getAttribute !== "function") {
+      return;
+    }
+
+    const x = Number(rect.getAttribute("x"));
+    const y = Number(rect.getAttribute("y"));
+    const width = Number(rect.getAttribute("width"));
+    const height = Number(rect.getAttribute("height"));
+
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return;
+    }
+
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      return;
+    }
+
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    bounds.push({ x, y, width, height });
+  });
+
+  return bounds;
+}
+
 const CUSTOM_DOT_SHAPES = [
   {
     id: "heart",
@@ -342,4 +379,5 @@ export {
   isInnerEyeClipRect,
   strengthenInnerEyeClipPaths,
   expandInnerEyeClipRects,
+  collectInnerEyeClipRectBounds,
 };

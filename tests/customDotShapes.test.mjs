@@ -6,6 +6,7 @@ import {
   applyDotSpacing,
   clampSpacing,
   CUSTOM_DOT_SHAPES,
+  collectInnerEyeClipRectBounds,
   expandInnerEyeClipRects,
   isCustomDotShapeSupported,
   isInnerEyeClipRect,
@@ -224,9 +225,17 @@ const createSvgWithClipPaths = (clipPaths, clippedElements = []) => {
       if (selector === "clipPath[id*='clip-path-corners-dot']") {
         return clipPaths;
       }
+
+      if (selector === "clipPath[id*='clip-path-corners-dot'] rect") {
+        return clipPaths
+          .map((clipPath) => clipPath.querySelector("rect"))
+          .filter((rect) => rect !== null);
+      }
+
       if (selector === "[clip-path]") {
         return clippedElements;
       }
+
       return [];
     },
   };
@@ -289,6 +298,54 @@ test("isInnerEyeClipRect ignores unrelated clip paths", () => {
 
   assert.equal(isInnerEyeClipRect(rect), false);
   assert.equal(isInnerEyeClipRect(null), false);
+});
+
+test("collectInnerEyeClipRectBounds extracts finder geometry", () => {
+  const clipPath = createClipPath({
+    id: "clip-path-corners-dot-color-0-0-1",
+    shape: "rect",
+    x: 20,
+    y: 24,
+    width: 36,
+    height: 36,
+  });
+  const { svg } = createSvgWithClipPaths([clipPath]);
+
+  const bounds = collectInnerEyeClipRectBounds(svg);
+
+  assert.deepEqual(bounds, [{ x: 20, y: 24, width: 36, height: 36 }]);
+});
+
+test("collectInnerEyeClipRectBounds skips invalid clip nodes", () => {
+  const valid = createClipPath({
+    id: "clip-path-corners-dot-color-0-0-1",
+    shape: "rect",
+    x: 10,
+    y: 10,
+    width: 30,
+    height: 30,
+  });
+  const zeroWidth = createClipPath({
+    id: "clip-path-corners-dot-color-0-0-2",
+    shape: "rect",
+    x: 15,
+    y: 15,
+    width: 0,
+    height: 20,
+  });
+  const circle = createClipPath({
+    id: "clip-path-corners-dot-color-0-0-3",
+    shape: "circle",
+    cx: 12,
+    cy: 12,
+    r: 6,
+  });
+
+  const { svg } = createSvgWithClipPaths([valid, zeroWidth, circle]);
+
+  const bounds = collectInnerEyeClipRectBounds(svg);
+
+  assert.deepEqual(bounds, [{ x: 10, y: 10, width: 30, height: 30 }]);
 });
 
 test("applyCustomDotShape replaces rects with SVG paths", () => {

@@ -13,6 +13,7 @@ import {
   applyDotSpacing,
   clampSpacing,
   CUSTOM_DOT_SHAPES,
+  collectInnerEyeClipRectBounds,
   expandInnerEyeClipRects,
   isInnerEyeClipRect,
   isCustomDotShapeSupported,
@@ -163,6 +164,24 @@ function spacingExtension(svg: SVGElement, options: any) {
 
   const protectSquareInnerEyes = dotType === "dots" && eyeInnerType === "square";
 
+  const innerEyeClipBounds = collectInnerEyeClipRectBounds(svg);
+
+  const finderBounds = dotType === "dots"
+    ? innerEyeClipBounds.flatMap(({ x, y, width, height }) => {
+        const padding = moduleSize * 2;
+        const minX = x - padding;
+        const minY = y - padding;
+        const maxX = x + width + padding;
+        const maxY = y + height + padding;
+
+        if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+          return [];
+        }
+
+        return [{ minX, minY, maxX, maxY }];
+      })
+    : [];
+
   const isModuleRect = (rect: SVGElement, width: number, height: number) => {
     if (width > moduleThreshold || height > moduleThreshold) {
       return false;
@@ -170,6 +189,28 @@ function spacingExtension(svg: SVGElement, options: any) {
 
     if (protectSquareInnerEyes && isInnerEyeClipRect(rect)) {
       return false;
+    }
+
+    if (finderBounds.length > 0) {
+      const x = Number(rect.getAttribute("x"));
+      const y = Number(rect.getAttribute("y"));
+
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+
+        if (
+          finderBounds.some(
+            ({ minX, minY, maxX, maxY }) =>
+              centerX >= minX &&
+              centerX <= maxX &&
+              centerY >= minY &&
+              centerY <= maxY
+          )
+        ) {
+          return false;
+        }
+      }
     }
 
     return true;
