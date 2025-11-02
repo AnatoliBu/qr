@@ -164,6 +164,72 @@ function applyCustomDotShape(svg, shapeId, spacing, filter) {
   });
 }
 
+function createSuperellipsePath(cx, cy, radiusX, radiusY, exponent = 4, steps = 48) {
+  if (!Number.isFinite(cx) || !Number.isFinite(cy)) {
+    return "";
+  }
+
+  const safeRadiusX = Number.isFinite(radiusX) && radiusX > 0 ? radiusX : 0;
+  const safeRadiusY = Number.isFinite(radiusY) && radiusY > 0 ? radiusY : 0;
+  if (safeRadiusX === 0 || safeRadiusY === 0) {
+    return "";
+  }
+
+  const power = Math.max(2, exponent);
+  const segments = Math.max(8, steps);
+  let path = "";
+
+  for (let index = 0; index <= segments; index++) {
+    const angle = (index / segments) * Math.PI * 2;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    const cosSign = Math.sign(cos) || 1;
+    const sinSign = Math.sign(sin) || 1;
+    const absCos = Math.abs(cos);
+    const absSin = Math.abs(sin);
+
+    const x = cx + safeRadiusX * cosSign * Math.pow(absCos, 2 / power);
+    const y = cy + safeRadiusY * sinSign * Math.pow(absSin, 2 / power);
+
+    path += `${index === 0 ? "M" : "L"} ${x.toFixed(3)} ${y.toFixed(3)} `;
+  }
+
+  return `${path}Z`;
+}
+
+function strengthenInnerEyeClipPaths(svg, overshoot = 1.12, exponent = 4) {
+  if (!svg || typeof svg.querySelectorAll !== "function") {
+    return;
+  }
+
+  const clipPaths = svg.querySelectorAll("clipPath[id*='clip-path-corners-dot']");
+
+  clipPaths.forEach((clipPath) => {
+    const circle = clipPath.querySelector("circle");
+    if (!circle) {
+      return;
+    }
+
+    const cx = Number(circle.getAttribute("cx"));
+    const cy = Number(circle.getAttribute("cy"));
+    const radius = Number(circle.getAttribute("r"));
+
+    if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(radius) || radius <= 0) {
+      return;
+    }
+
+    const transform = circle.getAttribute("transform");
+    const path = svg.ownerDocument.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", createSuperellipsePath(cx, cy, radius * overshoot, radius * overshoot, exponent));
+    if (transform) {
+      path.setAttribute("transform", transform);
+    }
+
+    clipPath.replaceChildren(path);
+  });
+}
+
 export {
   SVG_NS,
   clampSpacing,
@@ -171,4 +237,5 @@ export {
   CUSTOM_DOT_SHAPES,
   applyCustomDotShape,
   isCustomDotShapeSupported,
+  strengthenInnerEyeClipPaths,
 };

@@ -7,6 +7,7 @@ import {
   clampSpacing,
   CUSTOM_DOT_SHAPES,
   isCustomDotShapeSupported,
+  strengthenInnerEyeClipPaths,
 } from "../src/lib/qrCustomShapes.mjs";
 
 const createRect = ({ width, height, x = 0, y = 0, fill = "#000000" }) => {
@@ -78,6 +79,90 @@ const createSvg = (rects) => {
   };
 
   return { svg, parentNode, replacements, created };
+};
+
+const createClipPath = ({ id, cx, cy, r, transform = "" }) => {
+  const attrs = new Map([["id", id]]);
+  const circleAttrs = new Map([
+    ["cx", String(cx)],
+    ["cy", String(cy)],
+    ["r", String(r)],
+  ]);
+  if (transform) {
+    circleAttrs.set("transform", transform);
+  }
+
+  const circle = {
+    tagName: "circle",
+    parentNode: null,
+    attributes: circleAttrs,
+    getAttribute(name) {
+      return circleAttrs.get(name) ?? null;
+    },
+    setAttribute(name, value) {
+      circleAttrs.set(name, String(value));
+    },
+  };
+
+  const clipPath = {
+    tagName: "clipPath",
+    attributes: attrs,
+    childNodes: [circle],
+    parentNode: null,
+    getAttribute(name) {
+      return attrs.get(name) ?? null;
+    },
+    querySelector(selector) {
+      if (selector === "circle") {
+        return this.childNodes.find((node) => node.tagName === "circle") ?? null;
+      }
+      if (selector === "path") {
+        return this.childNodes.find((node) => node.tagName === "path") ?? null;
+      }
+      return null;
+    },
+    replaceChildren(node) {
+      this.childNodes = [node];
+      node.parentNode = this;
+    },
+  };
+
+  circle.parentNode = clipPath;
+
+  return clipPath;
+};
+
+const createSvgWithClipPaths = (clipPaths) => {
+  const created = [];
+
+  const svg = {
+    ownerDocument: {
+      createElementNS(_ns, tag) {
+        const attrs = new Map();
+        const node = {
+          tagName: tag,
+          parentNode: null,
+          attributes: attrs,
+          setAttribute(name, value) {
+            attrs.set(name, String(value));
+          },
+          getAttribute(name) {
+            return attrs.get(name) ?? null;
+          },
+        };
+        created.push(node);
+        return node;
+      },
+    },
+    querySelectorAll(selector) {
+      if (selector === "clipPath[id*='clip-path-corners-dot']") {
+        return clipPaths;
+      }
+      return [];
+    },
+  };
+
+  return { svg, created };
 };
 
 test("clampSpacing enforces bounds", () => {
@@ -186,4 +271,31 @@ test("applyCustomDotShape only transforms rects accepted by filter", () => {
   assert.equal(replacements[0].oldNode, rectSmall);
   assert.equal(rectLarge.tagName, "rect");
   assert.equal(rectLarge.getAttribute("fill"), "#111");
+});
+
+test("strengthenInnerEyeClipPaths replaces circular clips with enlarged paths", () => {
+  const clipPath = createClipPath({
+    id: "clip-path-corners-dot-color-0-0-1",
+    cx: 40,
+    cy: 40,
+    r: 15,
+    transform: "rotate(0,40,40)",
+  });
+  const { svg } = createSvgWithClipPaths([clipPath]);
+
+  strengthenInnerEyeClipPaths(svg, 1.2);
+
+  const [child] = clipPath.childNodes;
+  assert.ok(child, "clip path should have a replacement child");
+  assert.equal(child.tagName, "path", "clip should be replaced with a path");
+  assert.equal(child.getAttribute("transform"), "rotate(0,40,40)");
+
+  const pathData = child.getAttribute("d");
+  assert.ok(pathData && pathData.includes("M"), "path should contain drawing instructions");
+  const numbers = pathData
+    .match(/-?\d+(?:\.\d+)?/g)
+    ?.map(Number)
+    .filter((value) => Number.isFinite(value)) ?? [];
+
+  assert.ok(numbers.some((value) => value > 55), "path should extend beyond the original radius");
 });

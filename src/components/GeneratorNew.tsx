@@ -14,6 +14,7 @@ import {
   clampSpacing,
   CUSTOM_DOT_SHAPES,
   isCustomDotShapeSupported,
+  strengthenInnerEyeClipPaths,
 } from "@/lib/qrCustomShapes.mjs";
 
 // Haptic feedback helper
@@ -125,6 +126,7 @@ function spacingExtension(svg: SVGElement, options: any) {
   const spacing = clampSpacing(Number(options.moduleSpacing ?? 0));
   const customShape = options.customDotShape;
   const customEyeShape = options.customEyeShape;
+  const eyeInnerType = options.eyeInnerType;
 
   const rects = Array.from(svg.querySelectorAll("rect")) as SVGElement[];
   let moduleSize = Infinity;
@@ -169,6 +171,10 @@ function spacingExtension(svg: SVGElement, options: any) {
 
   if (isCustomDotShapeSupported(customEyeShape)) {
     applyCustomDotShape(svg, customEyeShape, 0, isInnerEyeRect);
+  }
+
+  if (eyeInnerType === "dot") {
+    strengthenInnerEyeClipPaths(svg);
   }
 
   ensureCircleLogo(svg, options);
@@ -633,7 +639,14 @@ export function GeneratorNew() {
       });
       qrRef.current = instance;
       instance.append(containerRef.current);
-      instance.applyExtension(spacingExtension);
+      instance.applyExtension((svg: SVGElement, opts: any) =>
+        spacingExtension(svg, {
+          ...opts,
+          customDotShape: draft.style.customDotShape,
+          customEyeShape: draft.style.customEyeShape,
+          eyeInnerType: draft.style.eyeInner
+        })
+      );
       schedulePreviewFit();
     }
   }, [QRCodeStylingCtor, draft.style.errorCorrection, draft.style.hideBackgroundDots, draft.style.logoSize, draft.style.marginPercent, schedulePreviewFit]);
@@ -764,7 +777,8 @@ export function GeneratorNew() {
         spacingExtension(svg, {
           ...opts,
           customDotShape: draft.style.customDotShape,
-          customEyeShape: draft.style.customEyeShape
+          customEyeShape: draft.style.customEyeShape,
+          eyeInnerType: draft.style.eyeInner
         })
       );
       schedulePreviewFit();
@@ -866,7 +880,8 @@ export function GeneratorNew() {
           spacingExtension(svg, {
             ...opts,
             customDotShape: draft.style.customDotShape,
-            customEyeShape: draft.style.customEyeShape
+            customEyeShape: draft.style.customEyeShape,
+            eyeInnerType: draft.style.eyeInner
           })
         );
 

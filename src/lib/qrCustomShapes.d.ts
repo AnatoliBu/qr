@@ -23,3 +23,9 @@ export declare function applyCustomDotShape(
 ): void;
 
 export declare function isCustomDotShapeSupported(shapeId: unknown): shapeId is string;
+
+export declare function strengthenInnerEyeClipPaths(
+  svg: SVGElement,
+  overshoot?: number,
+  exponent?: number
+): void;
