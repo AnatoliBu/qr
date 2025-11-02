@@ -8,6 +8,7 @@ import {
   CUSTOM_DOT_SHAPES,
   expandInnerEyeClipRects,
   isCustomDotShapeSupported,
+  isInnerEyeClipRect,
   strengthenInnerEyeClipPaths,
 } from "../src/lib/qrCustomShapes.mjs";
 
@@ -263,6 +264,31 @@ test("applyDotSpacing respects provided filter", () => {
   assert.equal(rectA.getAttribute("height"), "8.000");
   assert.equal(rectB.getAttribute("width"), "12");
   assert.equal(rectB.getAttribute("height"), "12");
+});
+
+test("isInnerEyeClipRect detects finder inner modules", () => {
+  const rect = createRect({
+    width: 14,
+    height: 14,
+    x: 10,
+    y: 10,
+    clipPath: "url('#clip-path-corners-dot-color-0-0-1')",
+  });
+
+  assert.equal(isInnerEyeClipRect(rect), true);
+});
+
+test("isInnerEyeClipRect ignores unrelated clip paths", () => {
+  const rect = createRect({
+    width: 14,
+    height: 14,
+    x: 10,
+    y: 10,
+    clipPath: "url('#clip-path-somewhere-else')",
+  });
+
+  assert.equal(isInnerEyeClipRect(rect), false);
+  assert.equal(isInnerEyeClipRect(null), false);
 });
 
 test("applyCustomDotShape replaces rects with SVG paths", () => {

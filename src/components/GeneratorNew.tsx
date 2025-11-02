@@ -14,6 +14,7 @@ import {
   clampSpacing,
   CUSTOM_DOT_SHAPES,
   expandInnerEyeClipRects,
+  isInnerEyeClipRect,
   isCustomDotShapeSupported,
   strengthenInnerEyeClipPaths,
 } from "@/lib/qrCustomShapes.mjs";
@@ -160,8 +161,19 @@ function spacingExtension(svg: SVGElement, options: any) {
   const moduleThreshold = moduleSize * 1.5;
   const innerEyeThreshold = moduleSize * 4.5;
 
-  const isModuleRect = (_rect: SVGElement, width: number, height: number) =>
-    width <= moduleThreshold && height <= moduleThreshold;
+  const protectSquareInnerEyes = dotType === "dots" && eyeInnerType === "square";
+
+  const isModuleRect = (rect: SVGElement, width: number, height: number) => {
+    if (width > moduleThreshold || height > moduleThreshold) {
+      return false;
+    }
+
+    if (protectSquareInnerEyes && isInnerEyeClipRect(rect)) {
+      return false;
+    }
+
+    return true;
+  };
 
   const isInnerEyeRect = (_rect: SVGElement, width: number, height: number) =>
     width > moduleThreshold && width <= innerEyeThreshold && height > moduleThreshold && height <= innerEyeThreshold;

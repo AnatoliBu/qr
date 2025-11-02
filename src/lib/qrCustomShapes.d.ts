@@ -24,6 +24,8 @@ export declare function applyCustomDotShape(
 
 export declare function isCustomDotShapeSupported(shapeId: unknown): shapeId is string;
 
+export declare function isInnerEyeClipRect(rect: SVGElement | null | undefined): boolean;
+
 export declare function strengthenInnerEyeClipPaths(
   svg: SVGElement,
   overshoot?: number,

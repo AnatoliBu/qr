@@ -42,6 +42,8 @@ function applyDotSpacing(svg, spacing, filter) {
   });
 }
 
+const INNER_EYE_CLIP_FRAGMENT = "clip-path-corners-dot";
+
 const CUSTOM_DOT_SHAPES = [
   {
     id: "heart",
@@ -162,6 +164,19 @@ function applyCustomDotShape(svg, shapeId, spacing, filter) {
 
     rect.parentNode?.replaceChild(path, rect);
   });
+}
+
+function isInnerEyeClipRect(rect) {
+  if (!rect || typeof rect.getAttribute !== "function") {
+    return false;
+  }
+
+  const clipPathAttr = rect.getAttribute("clip-path") || rect.getAttribute("clipPath");
+  if (!clipPathAttr || typeof clipPathAttr !== "string") {
+    return false;
+  }
+
+  return clipPathAttr.includes(INNER_EYE_CLIP_FRAGMENT);
 }
 
 function createSuperellipsePath(cx, cy, radiusX, radiusY, exponent = 4, steps = 48) {
@@ -324,6 +339,7 @@ export {
   CUSTOM_DOT_SHAPES,
   applyCustomDotShape,
   isCustomDotShapeSupported,
+  isInnerEyeClipRect,
   strengthenInnerEyeClipPaths,
   expandInnerEyeClipRects,
 };
