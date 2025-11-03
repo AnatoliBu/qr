@@ -41,6 +41,9 @@ const FLASH_DURATION = 220;
 const PAUSE_DURATION = 1500;
 const MAX_RESULTS = 20;
 
+type TorchCapabilities = MediaTrackCapabilities & { torch?: boolean };
+type TorchSettings = MediaTrackSettings & { torch?: boolean };
+
 export function Scanner() {
   const workerRef = useRef<Worker | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -49,7 +52,7 @@ export function Scanner() {
   const streamRef = useRef<MediaStream | null>(null);
   const requestIdRef = useRef(0);
   const pendingRequestRef = useRef<number | null>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
   const lastScanTimeRef = useRef(0);
   const pauseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,9 +108,9 @@ export function Scanner() {
 
   const stopCamera = useCallback(() => {
     clearTimeouts();
-    if (animationFrameRef.current) {
+    if (animationFrameRef.current !== null) {
       cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = undefined;
+      animationFrameRef.current = null;
     }
     if (pendingRequestRef.current !== null) {
       pendingRequestRef.current = null;
@@ -344,9 +347,9 @@ export function Scanner() {
     }
     animationFrameRef.current = requestAnimationFrame(scanLoop);
     return () => {
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = undefined;
+        animationFrameRef.current = null;
       }
     };
   }, [active, paused, scanLoop]);
@@ -377,10 +380,10 @@ export function Scanner() {
         } catch {}
       }
       const [track] = stream.getVideoTracks();
-      const capabilities = track?.getCapabilities?.();
+      const capabilities = (track?.getCapabilities?.() as TorchCapabilities | undefined) ?? undefined;
       setTorchAvailable(Boolean(capabilities?.torch));
-      const torch = track?.getSettings?.().torch;
-      setTorchEnabled(Boolean(torch));
+      const torchSetting = (track?.getSettings?.() as TorchSettings | undefined)?.torch;
+      setTorchEnabled(Boolean(torchSetting));
       setActive(true);
       setPaused(false);
       setHasCamera(true);
@@ -459,14 +462,15 @@ export function Scanner() {
     if (!track?.getCapabilities) {
       return;
     }
-    const capabilities = track.getCapabilities();
-    if (!capabilities || !("torch" in capabilities) || !capabilities.torch) {
+    const capabilities = track.getCapabilities() as TorchCapabilities;
+    if (!capabilities?.torch) {
       return;
     }
     try {
-      await track.applyConstraints({
-        advanced: [{ torch: !torchEnabled }]
-      });
+      const constraints = {
+        advanced: [{ torch: !torchEnabled } as unknown as MediaTrackConstraintSet]
+      } as MediaTrackConstraints;
+      await track.applyConstraints(constraints);
       setTorchEnabled((prev) => !prev);
     } catch (err: any) {
       setError(err?.message ?? "Не удалось переключить фонарик");

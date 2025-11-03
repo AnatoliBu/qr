@@ -1,5 +1,6 @@
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import { DecodeHintType } from "@zxing/library";
+/// <reference lib="webworker" />
+
+import { BarcodeFormat, BinaryBitmap, DecodeHintType, HybridBinarizer, MultiFormatReader, RGBLuminanceSource } from "@zxing/library";
 
 interface DecodeRequest {
   type: "decode";
@@ -34,9 +35,7 @@ type WorkerResponse = DecodeSuccess | DecodeError;
 
 const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope;
 
-const reader = new BrowserMultiFormatReader(undefined, {
-  delayBetweenScanAttempts: 0
-});
+const reader = new MultiFormatReader();
 
 const tryHarderHints = new Map([[DecodeHintType.TRY_HARDER, true]]);
 
@@ -53,8 +52,20 @@ function enhanceContrast(pixels: Uint8ClampedArray, factor = 1.4) {
   }
 }
 
-async function decode(imageData: ImageData, hints?: Map<DecodeHintType, unknown>) {
-  return reader.decodeFromImageData(imageData, hints);
+function toBinaryBitmap(imageData: ImageData) {
+  const luminanceSource = new RGBLuminanceSource(imageData.data, imageData.width, imageData.height);
+  return new BinaryBitmap(new HybridBinarizer(luminanceSource));
+}
+
+function decode(imageData: ImageData, hints?: Map<DecodeHintType, unknown>) {
+  const bitmap = toBinaryBitmap(imageData);
+  reader.reset();
+  if (hints) {
+    reader.setHints(hints);
+  } else {
+    reader.setHints(null);
+  }
+  return reader.decodeWithState(bitmap);
 }
 
 async function handleDecode(request: DecodeRequest) {
@@ -78,9 +89,10 @@ async function handleDecode(request: DecodeRequest) {
   let lastError: unknown;
   for (const attempt of attempts) {
     try {
-      const result = await decode(attempt.image, attempt.hints);
+      const result = decode(attempt.image, attempt.hints);
       const text = result.getText();
-      const format = result.getBarcodeFormat?.() ?? null;
+      const formatEnum = result.getBarcodeFormat();
+      const format = typeof formatEnum === "number" ? BarcodeFormat[formatEnum] ?? null : null;
       const raw = result.getRawBytes?.();
       const payload: DecodeSuccess = {
         type: "result",
