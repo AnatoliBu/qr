@@ -18,6 +18,7 @@ import {
   isInnerEyeClipRect,
   isCustomDotShapeSupported,
   strengthenInnerEyeClipPaths,
+  strengthenFinderPatterns,
 } from "@/lib/qrCustomShapes.mjs";
 
 // Haptic feedback helper
@@ -234,6 +235,9 @@ function spacingExtension(svg: SVGElement, options: any) {
   } else if (dotType === "dots" && eyeInnerType === "square" && eyeOuterType === "extra-rounded") {
     expandInnerEyeClipRects(svg);
   }
+
+  // Always strengthen finder patterns for better scannability
+  strengthenFinderPatterns(svg);
 
   ensureCircleLogo(svg, options);
 }

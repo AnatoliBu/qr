@@ -14,6 +14,9 @@ function applyDotSpacing(svg, spacing, filter) {
   const scale = 1 - safeSpacing;
   const rects = svg.querySelectorAll("rect");
 
+  // Enable crisp edges rendering for better QR code scanning
+  svg.setAttribute("shape-rendering", "crispEdges");
+
   rects.forEach((rect) => {
     const width = Number(rect.getAttribute("width"));
     const height = Number(rect.getAttribute("height"));
@@ -35,10 +38,12 @@ function applyDotSpacing(svg, spacing, filter) {
     const newX = centerX - newWidth / 2;
     const newY = centerY - newHeight / 2;
 
-    rect.setAttribute("x", newX.toFixed(3));
-    rect.setAttribute("y", newY.toFixed(3));
-    rect.setAttribute("width", newWidth.toFixed(3));
-    rect.setAttribute("height", newHeight.toFixed(3));
+    // Round coordinates to pixel grid to avoid anti-aliasing
+    rect.setAttribute("x", Math.round(newX).toFixed(0));
+    rect.setAttribute("y", Math.round(newY).toFixed(0));
+    rect.setAttribute("width", Math.round(newWidth).toFixed(0));
+    rect.setAttribute("height", Math.round(newHeight).toFixed(0));
+    rect.setAttribute("shape-rendering", "crispEdges");
   });
 }
 
@@ -175,6 +180,9 @@ function applyCustomDotShape(svg, shapeId, spacing, filter) {
   const scale = 1 - safeSpacing;
   const rects = svg.querySelectorAll("rect");
 
+  // Enable crisp edges rendering for better QR code scanning
+  svg.setAttribute("shape-rendering", "crispEdges");
+
   rects.forEach((rect) => {
     const width = Number(rect.getAttribute("width"));
     const height = Number(rect.getAttribute("height"));
@@ -192,12 +200,15 @@ function applyCustomDotShape(svg, shapeId, spacing, filter) {
     const centerX = x + width / 2;
     const centerY = y + height / 2;
     const newSize = Math.min(width, height) * scale;
-    const newX = centerX - newSize / 2;
-    const newY = centerY - newSize / 2;
+    // Round coordinates to pixel grid to avoid anti-aliasing
+    const newX = Math.round(centerX - newSize / 2);
+    const newY = Math.round(centerY - newSize / 2);
+    const roundedSize = Math.round(newSize);
 
     const path = svg.ownerDocument.createElementNS(SVG_NS, "path");
-    path.setAttribute("d", shape.renderPath(newX, newY, newSize));
+    path.setAttribute("d", shape.renderPath(newX, newY, roundedSize));
     path.setAttribute("fill", rect.getAttribute("fill") || "#000000");
+    path.setAttribute("shape-rendering", "crispEdges");
 
     rect.parentNode?.replaceChild(path, rect);
   });
@@ -282,7 +293,7 @@ function strengthenInnerEyeClipPaths(svg, overshoot = 1.12, exponent = 4) {
   });
 }
 
-function expandInnerEyeClipRects(svg, overshoot = 1.08) {
+function expandInnerEyeClipRects(svg, overshoot = 1.15) {
   if (!svg || typeof svg.querySelectorAll !== "function") {
     return;
   }
@@ -316,18 +327,20 @@ function expandInnerEyeClipRects(svg, overshoot = 1.08) {
     const centerY = y + height / 2;
     const newWidth = width * overshoot;
     const newHeight = height * overshoot;
-    const nextX = (centerX - newWidth / 2).toFixed(3);
-    const nextY = (centerY - newHeight / 2).toFixed(3);
-    const nextWidth = newWidth.toFixed(3);
-    const nextHeight = newHeight.toFixed(3);
+    // Round to pixel grid for crisp rendering
+    const nextX = Math.round(centerX - newWidth / 2);
+    const nextY = Math.round(centerY - newHeight / 2);
+    const nextWidth = Math.round(newWidth);
+    const nextHeight = Math.round(newHeight);
 
-    rect.setAttribute("x", nextX);
-    rect.setAttribute("y", nextY);
-    rect.setAttribute("width", nextWidth);
-    rect.setAttribute("height", nextHeight);
+    rect.setAttribute("x", nextX.toFixed(0));
+    rect.setAttribute("y", nextY.toFixed(0));
+    rect.setAttribute("width", nextWidth.toFixed(0));
+    rect.setAttribute("height", nextHeight.toFixed(0));
 
     rect.setAttribute("rx", "0");
     rect.setAttribute("ry", "0");
+    rect.setAttribute("shape-rendering", "crispEdges");
 
     rect.setAttribute("data-strengthened", "1");
 
@@ -356,16 +369,60 @@ function expandInnerEyeClipRects(svg, overshoot = 1.08) {
         return;
       }
 
-      node.setAttribute("x", nextX);
-      node.setAttribute("y", nextY);
-      node.setAttribute("width", nextWidth);
-      node.setAttribute("height", nextHeight);
+      node.setAttribute("x", nextX.toFixed(0));
+      node.setAttribute("y", nextY.toFixed(0));
+      node.setAttribute("width", nextWidth.toFixed(0));
+      node.setAttribute("height", nextHeight.toFixed(0));
 
       node.setAttribute("rx", "0");
       node.setAttribute("ry", "0");
+      node.setAttribute("shape-rendering", "crispEdges");
 
       node.setAttribute("data-strengthened", "1");
     });
+  });
+}
+
+/**
+ * Ensures all finder pattern elements (corner squares) are rendered with crisp edges
+ * to improve QR code scannability, especially with rounded corners.
+ */
+function strengthenFinderPatterns(svg) {
+  if (!svg || typeof svg.querySelectorAll !== "function") {
+    return;
+  }
+
+  // Find all large rects that are likely corner squares (finders)
+  const allRects = svg.querySelectorAll("rect");
+
+  allRects.forEach((rect) => {
+    const width = Number(rect.getAttribute("width"));
+    const height = Number(rect.getAttribute("height"));
+
+    // Finder outer squares are typically 7 modules wide
+    // Look for rects larger than 40px (likely finders)
+    if (width > 40 || height > 40) {
+      rect.setAttribute("shape-rendering", "crispEdges");
+
+      // Round coordinates to pixel grid
+      const x = Number(rect.getAttribute("x"));
+      const y = Number(rect.getAttribute("y"));
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        rect.setAttribute("x", Math.round(x).toFixed(0));
+        rect.setAttribute("y", Math.round(y).toFixed(0));
+        rect.setAttribute("width", Math.round(width).toFixed(0));
+        rect.setAttribute("height", Math.round(height).toFixed(0));
+      }
+    }
+  });
+
+  // Also apply to paths (rounded corners might use paths)
+  const allPaths = svg.querySelectorAll("path");
+  allPaths.forEach((path) => {
+    const bbox = path.getBBox?.();
+    if (bbox && (bbox.width > 40 || bbox.height > 40)) {
+      path.setAttribute("shape-rendering", "crispEdges");
+    }
   });
 }
 
@@ -380,4 +437,5 @@ export {
   strengthenInnerEyeClipPaths,
   expandInnerEyeClipRects,
   collectInnerEyeClipRectBounds,
+  strengthenFinderPatterns,
 };
