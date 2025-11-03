@@ -521,62 +521,64 @@ export function Scanner() {
 
       <div className="scanner">
         <div className="scanner__viewport">
-          <div className={`scanner__frame${flash ? " scanner__frame--flash" : ""}`}>
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              autoPlay
-              className={paused ? "paused" : ""}
-            />
-            <div className="scanner__overlay" aria-hidden>
-              <div className="scanner__mask" />
-              <div className="scanner__target">
-                <span />
-                <span />
-                <span />
-                <span />
+          <div className="scanner__video">
+            <div className={`scanner__frame${flash ? " scanner__frame--flash" : ""}`}>
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                autoPlay
+                className={paused ? "paused" : ""}
+              />
+              <div className="scanner__overlay" aria-hidden>
+                <div className="scanner__mask" />
+                <div className="scanner__target">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
             </div>
-          </div>
-          <canvas ref={canvasRef} className="scanner__canvas" aria-hidden />
-          <div className="scanner__controls">
-            <button
-              type="button"
-              onClick={active ? stopCamera : startCamera}
-              className={active ? "secondary" : "primary"}
-              disabled={isLoadingCamera}
-            >
-              {active ? "Остановить" : isLoadingCamera ? "Запуск…" : "Включить камеру"}
-            </button>
-            {active && torchAvailable ? (
+            <canvas ref={canvasRef} className="scanner__canvas" aria-hidden />
+            <div className="scanner__controls">
               <button
                 type="button"
-                onClick={toggleTorch}
-                className={torchEnabled ? "secondary active" : "secondary"}
-                aria-pressed={torchEnabled}
+                onClick={active ? stopCamera : startCamera}
+                className={active ? "secondary" : "primary"}
+                disabled={isLoadingCamera}
               >
-                {torchEnabled ? "Фонарик выкл." : "Фонарик"}
+                {active ? "Остановить" : isLoadingCamera ? "Запуск…" : "Включить камеру"}
               </button>
-            ) : null}
-            <label className="upload">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    void handleFile(file);
-                  }
-                  event.target.value = "";
-                }}
-              />
-              <span>Загрузить изображение</span>
-            </label>
+              {active && torchAvailable ? (
+                <button
+                  type="button"
+                  onClick={toggleTorch}
+                  className={torchEnabled ? "secondary active" : "secondary"}
+                  aria-pressed={torchEnabled}
+                >
+                  {torchEnabled ? "Фонарик выкл." : "Фонарик"}
+                </button>
+              ) : null}
+              <label className="upload">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      void handleFile(file);
+                    }
+                    event.target.value = "";
+                  }}
+                />
+                <span>Загрузить изображение</span>
+              </label>
+            </div>
+            <p className="scanner__status">{statusMessage}</p>
+            {error ? <p className="error-text" role="alert">{error}</p> : null}
           </div>
-          <p className="scanner__status">{statusMessage}</p>
-          {error ? <p className="error-text">{error}</p> : null}
         </div>
 
         <div className="scanner__results">
