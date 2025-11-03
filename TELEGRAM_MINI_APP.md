@@ -13,8 +13,7 @@ QR Suite has been successfully adapted to work as a Telegram Mini App (TMA) with
 **Files Added:**
 - `src/types/telegram.ts` - Shared TypeScript types for Telegram WebApp API
 - `src/providers/TelegramThemeProvider.tsx` - Provider for Telegram theme management
-- `src/hooks/useMainButton.ts` - Hook for managing Telegram's MainButton
-- `src/hooks/useTelegramTheme.ts` - Hook for accessing Telegram theme
+- `src/hooks/useTelegramHaptic.ts` - Hook and helper for Telegram haptic feedback
 
 **Functionality:**
 - Automatic theme detection and switching (light/dark mode)
@@ -85,8 +84,7 @@ src/
 │   ├── BatchGenerator.tsx   # Lazy-loaded
 │   └── Scanner.tsx          # Lazy-loaded
 ├── hooks/
-│   ├── useMainButton.ts     # New: MainButton hook
-│   └── useTelegramTheme.ts  # New: Theme hook
+│   └── useTelegramHaptic.ts # Shared haptic feedback helper
 ├── providers/
 │   └── TelegramThemeProvider.tsx  # New: Theme provider
 ├── styles/
