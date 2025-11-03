@@ -6,6 +6,7 @@ import { QRType, getTypeDefinition } from "@/lib/qrTypes";
 import { bytesToBinaryString } from "@/lib/binary";
 import { useDraft } from "@/hooks/useDraft";
 import { QR_SYSTEM, calculateMarginPx } from "@/lib/qrConstants";
+import { triggerTelegramHaptic } from "@/hooks/useTelegramHaptic";
 import styles from "./Generator.module.css";
 import {
   SVG_NS,
@@ -20,13 +21,6 @@ import {
   strengthenInnerEyeClipPaths,
   strengthenFinderPatterns,
 } from "@/lib/qrCustomShapes.mjs";
-
-// Haptic feedback helper
-function triggerHaptic(style: 'light' | 'medium' | 'heavy' = 'medium') {
-  if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-    window.Telegram.WebApp.HapticFeedback.impactOccurred(style);
-  }
-}
 
 function hexToRgb(hex: string) {
   const sanitized = hex.replace('#', '');
@@ -411,7 +405,6 @@ export function GeneratorNew() {
       style: defaultStyle
     }
   );
-
   // Миграция старых черновиков: size → exportSize, margin → marginPercent
   const draft = useMemo(() => {
     const style = { ...rawDraft.style };
@@ -563,7 +556,7 @@ export function GeneratorNew() {
   };
 
   const handleGradientTypeChange = (key: GradientKey, type: GradientType) => {
-    triggerHaptic('light');
+    triggerTelegramHaptic('light');
     updateGradient(key, (current) => ({ ...current, type }));
   };
 
@@ -598,7 +591,7 @@ export function GeneratorNew() {
 
   const switchType = useCallback(
     (type: QRType) => {
-      triggerHaptic('light');
+      triggerTelegramHaptic('light');
       setErrors({});
       setDraft((prev) => ({
         ...prev,
@@ -645,17 +638,17 @@ export function GeneratorNew() {
   const handleFileUpload = useCallback(
     (file: File | null) => {
       if (!file) {
-        triggerHaptic('light');
+        triggerTelegramHaptic('light');
         updateStyle({ logoDataUrl: undefined });
         return;
       }
       if (!file.type.startsWith("image/")) {
-        triggerHaptic('light');
+        triggerTelegramHaptic('light');
         return;
       }
       const reader = new FileReader();
       reader.onload = () => {
-        triggerHaptic('medium');
+        triggerTelegramHaptic('medium');
         updateStyle({ logoDataUrl: reader.result as string });
       };
       reader.readAsDataURL(file);
@@ -713,7 +706,19 @@ export function GeneratorNew() {
       );
       schedulePreviewFit();
     }
-  }, [QRCodeStylingCtor, draft.style.errorCorrection, draft.style.hideBackgroundDots, draft.style.logoSize, draft.style.marginPercent, schedulePreviewFit]);
+  }, [
+    QRCodeStylingCtor,
+    draft.style.customDotShape,
+    draft.style.customEyeShape,
+    draft.style.dotStyle,
+    draft.style.errorCorrection,
+    draft.style.eyeInner,
+    draft.style.eyeOuter,
+    draft.style.hideBackgroundDots,
+    draft.style.logoSize,
+    draft.style.marginPercent,
+    schedulePreviewFit
+  ]);
 
   const formValues = useMemo(() => {
     const scoped: Record<string, string> = {};
@@ -779,11 +784,11 @@ export function GeneratorNew() {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      triggerHaptic('light');
+      triggerTelegramHaptic('light');
       return false;
     }
 
-    triggerHaptic('medium');
+    triggerTelegramHaptic('medium');
     setQrPayload(payload);
 
     // Preview всегда использует фиксированный размер
@@ -882,7 +887,7 @@ export function GeneratorNew() {
       if (!ok) return;
 
       setIsLoading(true);
-      triggerHaptic('heavy');
+      triggerTelegramHaptic('heavy');
 
       try {
         const payload = qrPayload || activeDefinition.buildPayload(formValues);
@@ -1026,7 +1031,7 @@ export function GeneratorNew() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "content" })}
           onClick={() => {
             setActiveTab("content");
-            triggerHaptic('light');
+            triggerTelegramHaptic('light');
           }}
         >
           📝 Контент
@@ -1035,7 +1040,7 @@ export function GeneratorNew() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "style" })}
           onClick={() => {
             setActiveTab("style");
-            triggerHaptic('light');
+            triggerTelegramHaptic('light');
           }}
         >
           🎨 Стиль
@@ -1044,7 +1049,7 @@ export function GeneratorNew() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "advanced" })}
           onClick={() => {
             setActiveTab("advanced");
-            triggerHaptic('light');
+            triggerTelegramHaptic('light');
           }}
         >
           ⚙️ Продвинутые
@@ -1197,7 +1202,7 @@ export function GeneratorNew() {
                 value={draft.style.shape}
                 onChange={(event) => {
                   updateStyle({ shape: event.target.value as ShapeType });
-                  triggerHaptic('light');
+                  triggerTelegramHaptic('light');
                 }}
               >
                 {SHAPE_OPTIONS.map((option) => (
@@ -1224,7 +1229,7 @@ export function GeneratorNew() {
                   } else {
                     updateStyle({ dotStyle: value as DotStyle, customDotShape: undefined });
                   }
-                  triggerHaptic('light');
+                  triggerTelegramHaptic('light');
                 }}
               >
                 {DOT_STYLE_OPTIONS.map((option) => (
@@ -1241,7 +1246,7 @@ export function GeneratorNew() {
                 value={draft.style.eyeOuter}
                 onChange={(event) => {
                   updateStyle({ eyeOuter: event.target.value as EyeStyle });
-                  triggerHaptic('light');
+                  triggerTelegramHaptic('light');
                 }}
               >
                 {EYE_OUTER_OPTIONS.map((option) => (
@@ -1268,7 +1273,7 @@ export function GeneratorNew() {
                   } else {
                     updateStyle({ eyeInner: value as EyeDotStyle, customEyeShape: undefined });
                   }
-                  triggerHaptic('light');
+                  triggerTelegramHaptic('light');
                 }}
               >
                 {EYE_INNER_OPTIONS.map((option) => (
@@ -1294,7 +1299,7 @@ export function GeneratorNew() {
               value={draft.style.dotSpacing ?? 0}
               onChange={(event) => {
                 updateStyle({ dotSpacing: Number(event.target.value) });
-                triggerHaptic('light');
+                triggerTelegramHaptic('light');
               }}
             />
             <div className={styles.rangeHint}>0% — плотная сетка, 60% — заметные промежутки.</div>
@@ -1318,7 +1323,7 @@ export function GeneratorNew() {
                     checked={draft.style.useDotsGradient}
                     onChange={(event) => {
                       updateStyle({ useDotsGradient: event.target.checked });
-                      triggerHaptic('light');
+                      triggerTelegramHaptic('light');
                     }}
                   />
                   <span>Использовать градиент</span>
@@ -1417,7 +1422,7 @@ export function GeneratorNew() {
                     checked={draft.style.useBackgroundGradient}
                     onChange={(event) => {
                       updateStyle({ useBackgroundGradient: event.target.checked });
-                      triggerHaptic('light');
+                      triggerTelegramHaptic('light');
                     }}
                   />
                   <span>Использовать градиент</span>
@@ -1516,7 +1521,7 @@ export function GeneratorNew() {
                     checked={draft.style.useCornersGradient}
                     onChange={(event) => {
                       updateStyle({ useCornersGradient: event.target.checked });
-                      triggerHaptic('light');
+                      triggerTelegramHaptic('light');
                     }}
                   />
                   <span>Использовать градиент</span>
@@ -1695,7 +1700,7 @@ export function GeneratorNew() {
               className={styles.templateCard}
               onClick={() => {
                 updateStyle({ foreground: preset.fg, background: preset.bg });
-                triggerHaptic('medium');
+                triggerTelegramHaptic('medium');
               }}
             >
               <div className={styles.templateName}>{preset.emoji} {preset.name}</div>
@@ -1825,7 +1830,7 @@ export function GeneratorNew() {
           className={classNames(styles.btn, styles.btnSecondary)}
           onClick={() => {
             regenerate();
-            triggerHaptic('medium');
+            triggerTelegramHaptic('medium');
           }}
         >
           👁️ Превью

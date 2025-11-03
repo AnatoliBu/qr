@@ -6,14 +6,8 @@ import classNames from "classnames";
 import { GeneratorNew } from "@/components/GeneratorNew";
 import { Skeleton } from "@/components/ui/Skeleton";
 import styles from "@/components/Generator.module.css";
+import { useTelegramHaptic } from "@/hooks/useTelegramHaptic";
 import "./page.css";
-
-// Haptic feedback helper
-function triggerHaptic(style: 'light' | 'medium' | 'heavy' = 'medium') {
-  if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-    window.Telegram.WebApp.HapticFeedback.impactOccurred(style);
-  }
-}
 
 // Code-split heavy components to reduce initial bundle size
 const BatchGenerator = dynamic(
@@ -36,6 +30,7 @@ type MainTab = "generator" | "batch" | "scanner";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<MainTab>("generator");
+  const triggerHaptic = useTelegramHaptic("light");
 
   return (
     <main className="page">
@@ -49,7 +44,7 @@ export default function HomePage() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "generator" })}
           onClick={() => {
             setActiveTab("generator");
-            triggerHaptic('light');
+            triggerHaptic();
           }}
         >
           🎨 Генератор
@@ -58,7 +53,7 @@ export default function HomePage() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "batch" })}
           onClick={() => {
             setActiveTab("batch");
-            triggerHaptic('light');
+            triggerHaptic();
           }}
         >
           📦 Пакетная
@@ -67,7 +62,7 @@ export default function HomePage() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "scanner" })}
           onClick={() => {
             setActiveTab("scanner");
-            triggerHaptic('light');
+            triggerHaptic();
           }}
         >
           📷 Сканер
