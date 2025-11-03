@@ -1,6 +1,11 @@
 /// <reference lib="webworker" />
 
-import { BarcodeFormat, BinaryBitmap, DecodeHintType, HybridBinarizer, MultiFormatReader, RGBLuminanceSource } from "@zxing/library";
+import type { DecodeHintType as DecodeHintTypeKey } from "@zxing/library";
+import * as ZXing from "@zxing/library";
+
+const { BarcodeFormat, BinaryBitmap, DecodeHintType, HybridBinarizer, MultiFormatReader, RGBLuminanceSource } = ZXing;
+
+type DecodeHints = Map<DecodeHintTypeKey, unknown>;
 
 interface DecodeRequest {
   type: "decode";
@@ -37,7 +42,7 @@ const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobal
 
 const reader = new MultiFormatReader();
 
-const tryHarderHints = new Map([[DecodeHintType.TRY_HARDER, true]]);
+const tryHarderHints: DecodeHints = new Map([[DecodeHintType.TRY_HARDER, true]]);
 
 function clamp(value: number) {
   return Math.max(0, Math.min(255, value));
@@ -57,7 +62,7 @@ function toBinaryBitmap(imageData: ImageData) {
   return new BinaryBitmap(new HybridBinarizer(luminanceSource));
 }
 
-function decode(imageData: ImageData, hints?: Map<DecodeHintType, unknown>) {
+function decode(imageData: ImageData, hints?: DecodeHints) {
   const bitmap = toBinaryBitmap(imageData);
   reader.reset();
   if (hints) {
@@ -70,7 +75,7 @@ function decode(imageData: ImageData, hints?: Map<DecodeHintType, unknown>) {
 
 async function handleDecode(request: DecodeRequest) {
   const { requestId, imageData, enhance = true } = request;
-  const attempts: { hints?: Map<DecodeHintType, unknown>; image: ImageData }[] = [];
+  const attempts: { hints?: DecodeHints; image: ImageData }[] = [];
 
   const basePixels = new Uint8ClampedArray(imageData.data);
   const baseImage = new ImageData(basePixels, imageData.width, imageData.height);
