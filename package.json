@@ -19,6 +19,7 @@
   "dependencies": {
     "@twa-dev/sdk": "^8.0.2",
     "@zxing/browser": "0.1.5",
+    "@zxing/library": "^0.21.3",
     "classnames": "2.5.1",
     "idb": "8.0.3",
     "jszip": "3.10.1",
