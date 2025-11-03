@@ -13,7 +13,12 @@ import {
   applyDotSpacing,
   clampSpacing,
   CUSTOM_DOT_SHAPES,
+  collectInnerEyeClipRectBounds,
+  expandInnerEyeClipRects,
+  isInnerEyeClipRect,
   isCustomDotShapeSupported,
+  strengthenInnerEyeClipPaths,
+  strengthenFinderPatterns,
 } from "@/lib/qrCustomShapes.mjs";
 
 // Haptic feedback helper
@@ -124,12 +129,115 @@ function ensureCircleLogo(svg: SVGElement, options: any) {
 function spacingExtension(svg: SVGElement, options: any) {
   const spacing = clampSpacing(Number(options.moduleSpacing ?? 0));
   const customShape = options.customDotShape;
+  const customEyeShape = options.customEyeShape;
+  const dotType = options.dotStyle ?? options.dotsOptions?.type;
+  const eyeOuterType = options.eyeOuterType ?? options.cornersSquareOptions?.type;
+  const eyeInnerType = options.eyeInnerType ?? options.cornersDotOptions?.type;
+
+  const rects = Array.from(svg.querySelectorAll("rect")) as SVGElement[];
+  let moduleSize = Infinity;
+
+  rects.forEach((rect) => {
+    const width = Number(rect.getAttribute("width"));
+    const height = Number(rect.getAttribute("height"));
+    if (!width || !height) return;
+    if (width > 40 || height > 40) return;
+    moduleSize = Math.min(moduleSize, width, height);
+  });
+
+  if (!Number.isFinite(moduleSize) || moduleSize <= 0) {
+    if (isCustomDotShapeSupported(customShape)) {
+      applyCustomDotShape(svg, customShape, spacing);
+    } else {
+      applyDotSpacing(svg, spacing);
+    }
+
+    if (isCustomDotShapeSupported(customEyeShape)) {
+      applyCustomDotShape(svg, customEyeShape, 0);
+    }
+
+    ensureCircleLogo(svg, options);
+    return;
+  }
+
+  const moduleThreshold = moduleSize * 1.5;
+  const innerEyeThreshold = moduleSize * 4.5;
+
+  const protectSquareInnerEyes = dotType === "dots" && eyeInnerType === "square";
+
+  const innerEyeClipBounds = collectInnerEyeClipRectBounds(svg);
+
+  const finderBounds = dotType === "dots"
+    ? innerEyeClipBounds.flatMap(({ x, y, width, height }) => {
+        const padding = moduleSize * 2;
+        const minX = x - padding;
+        const minY = y - padding;
+        const maxX = x + width + padding;
+        const maxY = y + height + padding;
+
+        if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+          return [];
+        }
+
+        return [{ minX, minY, maxX, maxY }];
+      })
+    : [];
+
+  const isModuleRect = (rect: SVGElement, width: number, height: number) => {
+    if (width > moduleThreshold || height > moduleThreshold) {
+      return false;
+    }
+
+    if (protectSquareInnerEyes && isInnerEyeClipRect(rect)) {
+      return false;
+    }
+
+    if (finderBounds.length > 0) {
+      const x = Number(rect.getAttribute("x"));
+      const y = Number(rect.getAttribute("y"));
+
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+
+        if (
+          finderBounds.some(
+            ({ minX, minY, maxX, maxY }) =>
+              centerX >= minX &&
+              centerX <= maxX &&
+              centerY >= minY &&
+              centerY <= maxY
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  const isInnerEyeRect = (_rect: SVGElement, width: number, height: number) =>
+    width > moduleThreshold && width <= innerEyeThreshold && height > moduleThreshold && height <= innerEyeThreshold;
 
   if (isCustomDotShapeSupported(customShape)) {
-    applyCustomDotShape(svg, customShape, spacing);
+    applyCustomDotShape(svg, customShape, spacing, isModuleRect);
   } else {
-    applyDotSpacing(svg, spacing);
+    applyDotSpacing(svg, spacing, isModuleRect);
   }
+
+  if (isCustomDotShapeSupported(customEyeShape)) {
+    applyCustomDotShape(svg, customEyeShape, 0, isInnerEyeRect);
+  }
+
+  if (eyeInnerType === "dot") {
+    strengthenInnerEyeClipPaths(svg);
+  } else if (dotType === "dots" && eyeInnerType === "square" && eyeOuterType === "extra-rounded") {
+    expandInnerEyeClipRects(svg);
+  }
+
+  // Always strengthen finder patterns for better scannability
+  strengthenFinderPatterns(svg);
 
   ensureCircleLogo(svg, options);
 }
@@ -161,6 +269,7 @@ interface StyleOptions {
   shape: ShapeType;
   dotSpacing: number;
   customDotShape?: string;
+  customEyeShape?: string;
   useDotsGradient: boolean;
   dotsGradient?: Gradient;
   useBackgroundGradient: boolean;
@@ -189,6 +298,7 @@ const defaultStyle: StyleOptions = {
   shape: "square",
   dotSpacing: 0,
   customDotShape: undefined,
+  customEyeShape: undefined,
   useDotsGradient: false,
   dotsGradient: {
     type: "linear",
@@ -247,15 +357,9 @@ const QR_TEMPLATES = [
   { type: "ics", emoji: "📅", name: "Событие", desc: "Календарь" }
 ];
 
-// Style presets
-const STYLE_PRESETS = [
-  { id: "square", emoji: "⬛", label: "Квадраты", dotStyle: "square" as DotStyle },
-  { id: "dots", emoji: "⚫", label: "Точки", dotStyle: "dots" as DotStyle },
-  { id: "rounded", emoji: "🔘", label: "Скругленные", dotStyle: "rounded" as DotStyle },
-  { id: "elegant", emoji: "💎", label: "Элегантный", dotStyle: "extra-rounded" as DotStyle }
-];
+const CUSTOM_OPTION_PREFIX = "custom:" as const;
 
-const DOT_STYLE_OPTIONS: { value: DotStyle; label: string }[] = [
+const DOT_STYLE_BASE_OPTIONS: { value: DotStyle; label: string }[] = [
   { value: "square", label: "Квадраты" },
   { value: "rounded", label: "Скругленные" },
   { value: "extra-rounded", label: "Очень скругленные" },
@@ -264,15 +368,31 @@ const DOT_STYLE_OPTIONS: { value: DotStyle; label: string }[] = [
   { value: "classy-rounded", label: "Classy Rounded" }
 ];
 
+const DOT_STYLE_OPTIONS = [
+  ...DOT_STYLE_BASE_OPTIONS,
+  ...CUSTOM_DOT_SHAPES.map((shape) => ({
+    value: `${CUSTOM_OPTION_PREFIX}${shape.id}`,
+    label: `${shape.emoji} ${shape.name}`
+  }))
+];
+
 const EYE_OUTER_OPTIONS: { value: EyeStyle; label: string }[] = [
   { value: "square", label: "Квадрат" },
   { value: "extra-rounded", label: "Скруглённый" },
   { value: "dot", label: "Точка" }
 ];
 
-const EYE_INNER_OPTIONS: { value: EyeDotStyle; label: string }[] = [
+const EYE_INNER_BASE_OPTIONS: { value: EyeDotStyle; label: string }[] = [
   { value: "square", label: "Квадрат" },
   { value: "dot", label: "Точка" }
+];
+
+const EYE_INNER_OPTIONS = [
+  ...EYE_INNER_BASE_OPTIONS,
+  ...CUSTOM_DOT_SHAPES.map((shape) => ({
+    value: `${CUSTOM_OPTION_PREFIX}${shape.id}`,
+    label: `${shape.emoji} ${shape.name}`
+  }))
 ];
 
 const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
@@ -581,7 +701,16 @@ export function GeneratorNew() {
       });
       qrRef.current = instance;
       instance.append(containerRef.current);
-      instance.applyExtension(spacingExtension);
+      instance.applyExtension((svg: SVGElement, opts: any) =>
+        spacingExtension(svg, {
+          ...opts,
+          customDotShape: draft.style.customDotShape,
+          customEyeShape: draft.style.customEyeShape,
+          eyeInnerType: draft.style.eyeInner,
+          eyeOuterType: draft.style.eyeOuter,
+          dotStyle: draft.style.dotStyle
+        })
+      );
       schedulePreviewFit();
     }
   }, [QRCodeStylingCtor, draft.style.errorCorrection, draft.style.hideBackgroundDots, draft.style.logoSize, draft.style.marginPercent, schedulePreviewFit]);
@@ -671,6 +800,7 @@ export function GeneratorNew() {
       margin: previewMargin,
       moduleSpacing: (draft.style.dotSpacing ?? 0) / 100,
       customDotShape: draft.style.customDotShape,
+      customEyeShape: draft.style.customEyeShape,
       qrOptions: {
         errorCorrectionLevel: draft.style.errorCorrection,
         mode: "Byte"
@@ -710,7 +840,11 @@ export function GeneratorNew() {
       qrRef.current?.applyExtension((svg: SVGElement, opts: any) =>
         spacingExtension(svg, {
           ...opts,
-          customDotShape: draft.style.customDotShape
+          customDotShape: draft.style.customDotShape,
+          customEyeShape: draft.style.customEyeShape,
+          eyeInnerType: draft.style.eyeInner,
+          eyeOuterType: draft.style.eyeOuter,
+          dotStyle: draft.style.dotStyle
         })
       );
       schedulePreviewFit();
@@ -770,6 +904,7 @@ export function GeneratorNew() {
           margin: exportMargin,
           moduleSpacing: (draft.style.dotSpacing ?? 0) / 100,
           customDotShape: draft.style.customDotShape,
+          customEyeShape: draft.style.customEyeShape,
           qrOptions: {
             errorCorrectionLevel: draft.style.errorCorrection,
             mode: "Byte"
@@ -810,7 +945,11 @@ export function GeneratorNew() {
         exportQR.applyExtension((svg: SVGElement, opts: any) =>
           spacingExtension(svg, {
             ...opts,
-            customDotShape: draft.style.customDotShape
+            customDotShape: draft.style.customDotShape,
+            customEyeShape: draft.style.customEyeShape,
+            eyeInnerType: draft.style.eyeInner,
+            eyeOuterType: draft.style.eyeOuter,
+            dotStyle: draft.style.dotStyle
           })
         );
 
@@ -994,31 +1133,6 @@ export function GeneratorNew() {
       <div className={classNames(styles.tabContent, { [styles.tabContentActive]: activeTab === "style" })}>
         <div className={styles.inputGroup}>
           <label className={styles.inputLabel}>
-            <span>🎭 Стиль QR-кода</span>
-          </label>
-          <div className={styles.styleGrid}>
-            {STYLE_PRESETS.map((preset) => (
-              <div
-                key={preset.id}
-                className={classNames(styles.styleOption, {
-                  [styles.styleOptionActive]: draft.style.dotStyle === preset.dotStyle
-                })}
-                onClick={() => {
-                  updateStyle({ dotStyle: preset.dotStyle });
-                  triggerHaptic('light');
-                }}
-              >
-                <div className={styles.stylePreview}>{preset.emoji}</div>
-                <div className={styles.styleLabel}>{preset.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.divider}></div>
-
-        <div className={styles.inputGroup}>
-          <label className={styles.inputLabel}>
             <span>🎨 Цветовая схема</span>
           </label>
           <div className={styles.colorPickerGroup}>
@@ -1097,9 +1211,19 @@ export function GeneratorNew() {
               <span className={styles.fieldTitle}>Стиль точек</span>
               <select
                 className={styles.select}
-                value={draft.style.dotStyle}
+                value={
+                  draft.style.customDotShape
+                    ? `${CUSTOM_OPTION_PREFIX}${draft.style.customDotShape}`
+                    : draft.style.dotStyle
+                }
                 onChange={(event) => {
-                  updateStyle({ dotStyle: event.target.value as DotStyle });
+                  const { value } = event.target;
+                  if (value.startsWith(CUSTOM_OPTION_PREFIX)) {
+                    const shapeId = value.slice(CUSTOM_OPTION_PREFIX.length);
+                    updateStyle({ dotStyle: "square", customDotShape: shapeId });
+                  } else {
+                    updateStyle({ dotStyle: value as DotStyle, customDotShape: undefined });
+                  }
                   triggerHaptic('light');
                 }}
               >
@@ -1131,9 +1255,19 @@ export function GeneratorNew() {
               <span className={styles.fieldTitle}>Внутренние глазки</span>
               <select
                 className={styles.select}
-                value={draft.style.eyeInner}
+                value={
+                  draft.style.customEyeShape
+                    ? `${CUSTOM_OPTION_PREFIX}${draft.style.customEyeShape}`
+                    : draft.style.eyeInner
+                }
                 onChange={(event) => {
-                  updateStyle({ eyeInner: event.target.value as EyeDotStyle });
+                  const { value } = event.target;
+                  if (value.startsWith(CUSTOM_OPTION_PREFIX)) {
+                    const shapeId = value.slice(CUSTOM_OPTION_PREFIX.length);
+                    updateStyle({ eyeInner: "square", customEyeShape: shapeId });
+                  } else {
+                    updateStyle({ eyeInner: value as EyeDotStyle, customEyeShape: undefined });
+                  }
                   triggerHaptic('light');
                 }}
               >
@@ -1145,29 +1279,6 @@ export function GeneratorNew() {
               </select>
             </label>
           </div>
-
-          {draft.style.dotStyle === "square" && (
-            <div className={styles.formGroup}>
-              <label className={styles.label}>
-                Кастомная форма точек
-              </label>
-              <select
-                value={draft.style.customDotShape || ""}
-                onChange={(e) => {
-                  updateStyle({ customDotShape: e.target.value || undefined });
-                  triggerHaptic('light');
-                }}
-                className={styles.select}
-              >
-                <option value="">Стандартная</option>
-                {CUSTOM_DOT_SHAPES.map((shape) => (
-                  <option key={shape.id} value={shape.id}>
-                    {shape.emoji} {shape.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           <div className={styles.rangeGroup}>
             <label className={styles.inputLabel}>
