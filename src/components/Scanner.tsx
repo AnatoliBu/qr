@@ -448,8 +448,15 @@ export function Scanner() {
         if ((err as WorkerDecodeError)?.notFound) {
           setError("Не удалось найти QR-код на изображении");
         } else {
-          const message = err?.message ?? "Файл не содержит QR-код";
-          setError(message);
+          const rawMessage = typeof err?.message === "string" ? err.message.trim() : "";
+          const technicalErrorPatterns = [
+            "symbol(symbol.iterator)",
+            "is not iterable"
+          ];
+          const isTechnicalMessage =
+            rawMessage.length === 0 ||
+            technicalErrorPatterns.some((pattern) => rawMessage.toLowerCase().includes(pattern));
+          setError(isTechnicalMessage ? "Файл не содержит QR-код" : rawMessage || "Файл не содержит QR-код");
         }
       }
     },
