@@ -2,10 +2,15 @@ name: tests
 
 on:
   push:
-    branches:
+    branches-ignore:
       - test
       - main
+      - gh-pages
   pull_request:
+    branches-ignore:
+      - test
+      - main
+      - gh-pages
 
 jobs:
   unit-tests:
