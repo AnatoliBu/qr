@@ -21,7 +21,8 @@ function applyDotSpacing(svg, spacing, filter) {
     const width = Number(rect.getAttribute("width"));
     const height = Number(rect.getAttribute("height"));
     if (!width || !height) return;
-    if (width > 40 || height > 40) return;
+    const maxDimension = Math.max(width, height);
+    if (!filter && maxDimension > 40) return;
 
     if (typeof filter === "function" && !filter(rect, width, height)) {
       return;
