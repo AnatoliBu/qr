@@ -75,7 +75,15 @@ const createSvg = (rects) => {
     rect.parentNode = parentNode;
   });
 
+  const svgAttrs = new Map();
   const svg = {
+    attributes: svgAttrs,
+    setAttribute(name, value) {
+      svgAttrs.set(name, String(value));
+    },
+    getAttribute(name) {
+      return svgAttrs.get(name) ?? null;
+    },
     ownerDocument: {
       createElementNS(_ns, tag) {
         const attrs = new Map();
@@ -100,6 +108,9 @@ const createSvg = (rects) => {
       }
       if (selector === "[clip-path]") {
         return rects.filter((rect) => Boolean(rect.getAttribute("clip-path")));
+      }
+      if (selector === "path") {
+        return [];
       }
       return [];
     },
@@ -256,10 +267,13 @@ test("applyDotSpacing scales modules when no custom shape is provided", () => {
 
   applyDotSpacing(svg, 0.2);
 
-  assert.equal(rect.getAttribute("width"), "8.000");
-  assert.equal(rect.getAttribute("height"), "8.000");
-  assert.equal(rect.getAttribute("x"), "1.000");
-  assert.equal(rect.getAttribute("y"), "1.000");
+  // Values are now rounded to pixel grid for crisp rendering
+  assert.equal(rect.getAttribute("width"), "8");
+  assert.equal(rect.getAttribute("height"), "8");
+  assert.equal(rect.getAttribute("x"), "1");
+  assert.equal(rect.getAttribute("y"), "1");
+  assert.equal(rect.getAttribute("shape-rendering"), "crispEdges");
+  assert.equal(svg.getAttribute("shape-rendering"), "crispEdges");
 });
 
 test("applyDotSpacing respects provided filter", () => {
@@ -269,8 +283,9 @@ test("applyDotSpacing respects provided filter", () => {
 
   applyDotSpacing(svg, 0.2, (rect) => rect === rectA);
 
-  assert.equal(rectA.getAttribute("width"), "8.000");
-  assert.equal(rectA.getAttribute("height"), "8.000");
+  // Values are now rounded to pixel grid for crisp rendering
+  assert.equal(rectA.getAttribute("width"), "8");
+  assert.equal(rectA.getAttribute("height"), "8");
   assert.equal(rectB.getAttribute("width"), "12");
   assert.equal(rectB.getAttribute("height"), "12");
 });
@@ -375,9 +390,10 @@ test("applyCustomDotShape replaces rects with SVG paths", () => {
 
   assert.equal(calls.length, 1, "renderPath should be called once per rect");
   const { x, y, size } = calls[0];
-  assert.equal(Number(x.toFixed(3)), 4.6);
-  assert.equal(Number(y.toFixed(3)), 6.6);
-  assert.equal(Number(size.toFixed(3)), 10.8);
+  // Values are now rounded to pixel grid for crisp rendering
+  assert.equal(x, 5);  // Math.round(4.6) = 5
+  assert.equal(y, 7);  // Math.round(6.6) = 7
+  assert.equal(size, 11);  // Math.round(10.8) = 11
 });
 
 test("applyCustomDotShape falls back to spacing for unsupported shape", () => {
@@ -387,10 +403,11 @@ test("applyCustomDotShape falls back to spacing for unsupported shape", () => {
   applyCustomDotShape(svg, "unknown", 0.25);
 
   assert.equal(replacements.length, 0, "rect should not be replaced for unknown shapes");
-  assert.equal(rect.getAttribute("width"), "15.000");
-  assert.equal(rect.getAttribute("height"), "15.000");
-  assert.equal(rect.getAttribute("x"), "2.500");
-  assert.equal(rect.getAttribute("y"), "2.500");
+  // Values are now rounded to pixel grid for crisp rendering
+  assert.equal(rect.getAttribute("width"), "15");
+  assert.equal(rect.getAttribute("height"), "15");
+  assert.equal(rect.getAttribute("x"), "3");  // Math.round(2.5) = 3
+  assert.equal(rect.getAttribute("y"), "3");  // Math.round(2.5) = 3
 });
 
 test("applyCustomDotShape skips large positioning modules", () => {
@@ -450,18 +467,19 @@ test("expandInnerEyeClipRects enlarges square clips without compounding", () => 
 
   const rect = clipPath.querySelector("rect");
   assert.ok(rect, "clip path should include a rect");
-  assert.equal(rect.getAttribute("width"), "56.100");
-  assert.equal(rect.getAttribute("height"), "56.100");
-  assert.equal(rect.getAttribute("x"), "74.450");
-  assert.equal(rect.getAttribute("y"), "74.450");
+  // Values are now rounded to pixel grid for crisp rendering
+  assert.equal(rect.getAttribute("width"), "56");
+  assert.equal(rect.getAttribute("height"), "56");
+  assert.equal(rect.getAttribute("x"), "74");
+  assert.equal(rect.getAttribute("y"), "74");
   assert.equal(rect.getAttribute("rx"), "0");
   assert.equal(rect.getAttribute("ry"), "0");
   assert.equal(rect.getAttribute("data-strengthened"), "1");
 
-  assert.equal(clippedRect.getAttribute("width"), "56.100");
-  assert.equal(clippedRect.getAttribute("height"), "56.100");
-  assert.equal(clippedRect.getAttribute("x"), "74.450");
-  assert.equal(clippedRect.getAttribute("y"), "74.450");
+  assert.equal(clippedRect.getAttribute("width"), "56");
+  assert.equal(clippedRect.getAttribute("height"), "56");
+  assert.equal(clippedRect.getAttribute("x"), "74");
+  assert.equal(clippedRect.getAttribute("y"), "74");
   assert.equal(clippedRect.getAttribute("rx"), "0");
   assert.equal(clippedRect.getAttribute("ry"), "0");
   assert.equal(clippedRect.getAttribute("data-strengthened"), "1");
