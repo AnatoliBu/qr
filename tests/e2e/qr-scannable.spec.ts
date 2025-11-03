@@ -10,6 +10,135 @@ function decodeQr(buffer: Buffer): string | null {
   return code?.data ?? null;
 }
 
+function dataUrlToBuffer(dataUrl: string): Buffer {
+  const base64 = dataUrl.split(',')[1];
+  if (!base64) {
+    throw new Error('Invalid data URL received from preview element');
+  }
+
+  return Buffer.from(base64, 'base64');
+}
+
+async function getElementDataUrl(locator: Locator): Promise<string> {
+  return locator.evaluate(async (el) => {
+    if (el instanceof HTMLCanvasElement) {
+      return el.toDataURL('image/png');
+    }
+
+    if (!(el instanceof SVGSVGElement)) {
+      throw new Error('Preview element is neither canvas nor SVG');
+    }
+
+    const serializer = new XMLSerializer();
+    const svgText = serializer.serializeToString(el);
+    const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    try {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load SVG preview into image'));
+        img.src = url;
+      });
+
+      const rect = el.getBoundingClientRect();
+      const viewBox = el.viewBox.baseVal;
+      const fallbackSize = 400;
+      const width = rect.width || viewBox.width || el.clientWidth || fallbackSize;
+      const height = rect.height || viewBox.height || el.clientHeight || fallbackSize;
+      const scale = 2;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(256, Math.round(width * scale));
+      canvas.height = Math.max(256, Math.round(height * scale));
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Failed to acquire 2d context for preview rasterisation');
+      }
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/png');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  });
+}
+
+async function waitForQrReady(page: Page, canvas: Locator): Promise<void> {
+  const handle = await canvas.elementHandle();
+  if (!handle) {
+    throw new Error('Preview element handle not found');
+  }
+
+  await page.waitForFunction(
+    (el) => {
+      if (el instanceof HTMLCanvasElement) {
+        const ctx = el.getContext('2d');
+        if (!ctx) {
+          return false;
+        }
+
+        const { width, height } = el;
+        if (!width || !height) {
+          return false;
+        }
+
+        const sampleWidth = Math.min(200, Math.floor(width));
+        const sampleHeight = Math.min(200, Math.floor(height));
+
+        try {
+          const data = ctx.getImageData(0, 0, sampleWidth, sampleHeight).data;
+          let darkPixels = 0;
+
+          for (let i = 0; i < data.length; i += 4) {
+            const brightness = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+            if (brightness < 128) {
+              darkPixels += 1;
+              if (darkPixels > 50) {
+                return true;
+              }
+            }
+          }
+        } catch (error) {
+          return false;
+        }
+
+        return false;
+      }
+
+      if (el instanceof SVGSVGElement) {
+        const moduleNodes = el.querySelectorAll('path, rect, circle, use');
+        return moduleNodes.length > 50;
+      }
+
+      return false;
+    },
+    handle,
+    { timeout: 10_000 }
+  );
+
+  await handle.dispose();
+}
+
+async function captureQrData(page: Page, canvas: Locator): Promise<string | null> {
+  await waitForQrReady(page, canvas);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const dataUrl = await getElementDataUrl(canvas);
+    const decoded = decodeQr(dataUrlToBuffer(dataUrl));
+    if (decoded) {
+      return decoded;
+    }
+
+    await page.waitForTimeout(150);
+  }
+
+  const fallbackDataUrl = await getElementDataUrl(canvas);
+  return decodeQr(dataUrlToBuffer(fallbackDataUrl));
+}
+
 async function getPreviewCanvas(page: Page): Promise<Locator> {
   const container = page.locator('[class*="qrPreview"]').first();
   await container.waitFor({ state: 'visible', timeout: 30_000 });
@@ -34,10 +163,9 @@ test.describe('QR code scannability', () => {
     await urlInput.fill('https://example.com/scannable');
 
     await page.getByRole('button', { name: '⬇️ Скачать QR' }).click();
-    await page.waitForTimeout(500);
 
     const canvas = await getPreviewCanvas(page);
-    const qrData = decodeQr(await canvas.screenshot());
+    const qrData = await captureQrData(page, canvas);
     expect(qrData).not.toBeNull();
     expect(qrData).toBe('https://example.com/scannable');
   });
@@ -83,10 +211,9 @@ test.describe('QR code scannability', () => {
           await eyeInnerSelect.selectOption(eyeInner.value);
 
           await page.getByRole('button', { name: '⬇️ Скачать QR' }).click();
-          await page.waitForTimeout(500);
 
           const canvas = await getPreviewCanvas(page);
-          const qrData = decodeQr(await canvas.screenshot());
+          const qrData = await captureQrData(page, canvas);
           expect(
             qrData,
             `QR with dot style "${dotStyle.label}", eye outer "${eyeOuter.label}" and inner "${eyeInner.label}" should be decodable`
@@ -111,10 +238,9 @@ test.describe('QR code scannability', () => {
     await gradientCheckbox.check();
 
     await page.getByRole('button', { name: '⬇️ Скачать QR' }).click();
-    await page.waitForTimeout(500);
 
     const canvas = await getPreviewCanvas(page);
-    const qrData = decodeQr(await canvas.screenshot());
+    const qrData = await captureQrData(page, canvas);
     expect(qrData).toBe('https://github.com/telegram-mini-apps');
   });
 
@@ -128,10 +254,9 @@ test.describe('QR code scannability', () => {
     await textInput.fill(payload);
 
     await page.getByRole('button', { name: '⬇️ Скачать QR' }).click();
-    await page.waitForTimeout(500);
 
     const canvas = await getPreviewCanvas(page);
-    const qrData = decodeQr(await canvas.screenshot());
+    const qrData = await captureQrData(page, canvas);
     expect(qrData).toBe(payload);
   });
 });
