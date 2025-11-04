@@ -128,6 +128,23 @@ function spacingExtension(svg: SVGElement, options: any) {
   const eyeOuterType = options.eyeOuterType ?? options.cornersSquareOptions?.type;
   const eyeInnerType = options.eyeInnerType ?? options.cornersDotOptions?.type;
 
+  const svgWidth =
+    Number(svg.getAttribute("width")) ||
+    Number(svg.getAttribute("viewBox")?.split(/\s+/)[2]) ||
+    Number(options.width) ||
+    QR_SYSTEM.PREVIEW.LOGICAL_SIZE;
+  const svgHeight =
+    Number(svg.getAttribute("height")) ||
+    Number(svg.getAttribute("viewBox")?.split(/\s+/)[3]) ||
+    Number(options.height) ||
+    QR_SYSTEM.PREVIEW.LOGICAL_SIZE;
+  const margin = Math.max(0, Number(options.margin ?? 0));
+
+  const isApproxEqual = (a: number, b: number, epsilon = 0.01) => Math.abs(a - b) <= epsilon;
+
+  const innerWidth = Math.max(svgWidth - margin * 2, 0);
+  const innerHeight = Math.max(svgHeight - margin * 2, 0);
+
   const rects = Array.from(svg.querySelectorAll("rect")) as SVGElement[];
   let moduleSize = Infinity;
 
@@ -135,7 +152,9 @@ function spacingExtension(svg: SVGElement, options: any) {
     const width = Number(rect.getAttribute("width"));
     const height = Number(rect.getAttribute("height"));
     if (!width || !height) return;
-    if (width > 40 || height > 40) return;
+    if (isApproxEqual(width, svgWidth) && isApproxEqual(height, svgHeight)) return;
+    if (innerWidth && innerHeight && isApproxEqual(width, innerWidth) && isApproxEqual(height, innerHeight))
+      return;
     moduleSize = Math.min(moduleSize, width, height);
   });
 
@@ -439,6 +458,7 @@ export function GeneratorNew() {
   const [byteLength, setByteLength] = useState(0);
   const [QRCodeStylingCtor, setQRCodeStylingCtor] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"png" | "svg">("png");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const qrRef = useRef<any>(null);
 
@@ -947,6 +967,8 @@ export function GeneratorNew() {
 
         // Создаем временный экземпляр для экспорта
         const exportQR = new QRCodeStylingCtor(exportOptions);
+        const tempContainer = document.createElement("div");
+        exportQR.append(tempContainer);
         exportQR.applyExtension((svg: SVGElement, opts: any) =>
           spacingExtension(svg, {
             ...opts,
@@ -958,7 +980,22 @@ export function GeneratorNew() {
           })
         );
 
-        const blob = await exportQR.getRawData(format);
+        const syncResult = exportQR.update(exportOptions);
+        if (syncResult && typeof (syncResult as Promise<unknown>).then === "function") {
+          await syncResult;
+        }
+
+        let blob: Blob | null = null;
+        try {
+          const rawBlob = await exportQR.getRawData(format);
+          if (!rawBlob) {
+            return;
+          }
+          blob = rawBlob;
+        } finally {
+          tempContainer.remove();
+        }
+
         if (!blob) {
           return;
         }
@@ -1817,7 +1854,11 @@ export function GeneratorNew() {
           <label className={styles.inputLabel}>
             <span>📦 Формат экспорта</span>
           </label>
-          <select className={styles.select}>
+          <select
+            className={styles.select}
+            value={exportFormat}
+            onChange={(event) => setExportFormat(event.target.value as "png" | "svg")}
+          >
             <option value="png">PNG (Рекомендуется)</option>
             <option value="svg">SVG (Векторный)</option>
           </select>
@@ -1837,7 +1878,7 @@ export function GeneratorNew() {
         </button>
         <button
           className={classNames(styles.btn, styles.btnPrimary)}
-          onClick={() => exportBlob("png")}
+          onClick={() => exportBlob(exportFormat)}
         >
           ⬇️ Скачать QR
         </button>

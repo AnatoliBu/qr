@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, ReactNode } from 'react';
-import '@/types/telegram';
+import type { TelegramWebApp } from '@/types/telegram';
 
 interface TelegramThemeProviderProps {
   children: ReactNode;
@@ -9,24 +9,14 @@ interface TelegramThemeProviderProps {
 
 export function TelegramThemeProvider({ children }: TelegramThemeProviderProps) {
   useEffect(() => {
-    // Check if running inside Telegram
-    if (typeof window === 'undefined' || !window.Telegram?.WebApp) {
-      console.log('Not running in Telegram WebApp, using default theme');
+    if (typeof window === 'undefined') {
       return;
     }
 
-    const WebApp = window.Telegram.WebApp;
-
-    // Initialize Telegram WebApp
-    WebApp.ready();
-    WebApp.expand();
-
-    // Apply theme parameters - TMA Premium Design System
-    const applyTheme = () => {
-      const theme = WebApp.themeParams;
+    const applyTheme = (webApp: TelegramWebApp) => {
+      const theme = webApp.themeParams ?? {};
       const root = document.documentElement;
 
-      // TMA Premium Design System variables
       root.style.setProperty('--bg', theme.bg_color || '#ffffff');
       root.style.setProperty('--text', theme.text_color || '#000000');
       root.style.setProperty('--hint', theme.hint_color || '#6d6d6d');
@@ -35,24 +25,80 @@ export function TelegramThemeProvider({ children }: TelegramThemeProviderProps) 
       root.style.setProperty('--button', theme.button_color || '#3390ec');
       root.style.setProperty('--destructive', theme.destructive_text_color || '#ff3b30');
       root.style.setProperty('--surface-border', theme.secondary_bg_color || 'rgba(12, 33, 66, 0.1)');
-
-      // Set color scheme
-      root.style.setProperty('color-scheme', WebApp.colorScheme);
+      root.style.setProperty('color-scheme', webApp.colorScheme);
     };
 
-    // Initial theme application
-    applyTheme();
+    const initTelegram = (webApp: TelegramWebApp) => {
+      try {
+        webApp.ready?.();
+        webApp.expand?.();
+      } catch (error) {
+        console.warn('Failed to initialize Telegram WebApp API', error);
+      }
 
-    // Listen for theme changes
-    const handleThemeChange = () => {
-      applyTheme();
+      applyTheme(webApp);
+
+      const handleThemeChange = () => applyTheme(webApp);
+
+      try {
+        webApp.onEvent?.('themeChanged', handleThemeChange);
+      } catch (error) {
+        console.warn('Failed to subscribe to Telegram theme changes', error);
+      }
+
+      return () => {
+        try {
+          webApp.offEvent?.('themeChanged', handleThemeChange);
+        } catch (error) {
+          console.warn('Failed to unsubscribe from Telegram theme changes', error);
+        }
+      };
     };
 
-    WebApp.onEvent('themeChanged', handleThemeChange);
+    const maybeLoadTelegramApi = async () => {
+      const existingTelegram = window.Telegram;
+      if (existingTelegram?.WebApp) {
+        return initTelegram(existingTelegram.WebApp);
+      }
 
-    // Cleanup
+      const ua = window.navigator?.userAgent ?? '';
+      if (!/Telegram/i.test(ua)) {
+        return undefined;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://telegram.org/js/telegram-web-app.js';
+      script.async = true;
+
+      const loadScript = new Promise<void>((resolve, reject) => {
+        script.addEventListener('load', () => resolve());
+        script.addEventListener('error', () => reject(new Error('Failed to load Telegram WebApp script')));
+      });
+
+      document.head.appendChild(script);
+
+      try {
+        await loadScript;
+      } catch (error) {
+        console.warn(error);
+        script.remove();
+        return undefined;
+      }
+
+      if (!window.Telegram?.WebApp) {
+        console.warn('Telegram WebApp API not available after script load');
+        return undefined;
+      }
+
+      return initTelegram(window.Telegram.WebApp);
+    };
+
+    const cleanupPromise = maybeLoadTelegramApi();
+
     return () => {
-      WebApp.offEvent('themeChanged', handleThemeChange);
+      void cleanupPromise?.then((cleanup) => {
+        cleanup?.();
+      });
     };
   }, []);
 

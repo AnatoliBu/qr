@@ -43,6 +43,7 @@ const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobal
 const reader = new MultiFormatReader();
 
 const tryHarderHints: DecodeHints = new Map([[DecodeHintType.TRY_HARDER, true]]);
+const emptyHints: DecodeHints = new Map();
 
 function clamp(value: number) {
   return Math.max(0, Math.min(255, value));
@@ -65,11 +66,7 @@ function toBinaryBitmap(imageData: ImageData) {
 function decode(imageData: ImageData, hints?: DecodeHints) {
   const bitmap = toBinaryBitmap(imageData);
   reader.reset();
-  if (hints) {
-    reader.setHints(hints);
-  } else {
-    reader.setHints(null);
-  }
+  reader.setHints(hints ?? emptyHints);
   return reader.decodeWithState(bitmap);
 }
 
