@@ -8,13 +8,24 @@
     "start": "next start",
     "serve": "serve out -l 3000",
     "lint": "eslint .",
+    "lint:gherkin": "gherkin-lint specs/features",
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc -p tests/e2e/tsconfig.json",
+    "typecheck:bdd": "tsc -p specs/tsconfig.json --noEmit",
     "pretest:e2e": "node scripts/pretest-e2e.mjs",
     "test": "npm run typecheck && node --test tests/*.test.mjs",
+    "test:bdd": "cucumber-js",
+    "test:bdd:smoke": "cucumber-js --profile smoke",
+    "test:bdd:critical": "cucumber-js --profile critical",
+    "test:bdd:watch": "cucumber-js --watch",
+    "test:bdd:dry": "cucumber-js --dry-run",
+    "test:playwright-bdd": "playwright test -c playwright-bdd.config.ts",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:e2e:report": "playwright show-report",
-    "test:all": "npm run test && npm run test:e2e"
+    "test:all": "npm run test && npm run test:bdd && npm run test:e2e",
+    "spec:coverage": "node scripts/check-spec-coverage.js",
+    "docs:generate": "node scripts/generate-living-docs.js",
+    "docs:serve": "serve docs/living -l 8080"
   },
   "dependencies": {
     "@twa-dev/sdk": "^8.0.2",
@@ -32,18 +43,26 @@
     "xlsx": "0.18.5"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^12.2.0",
+    "@cucumber/html-formatter": "^22.0.0",
     "@playwright/test": "^1.56.1",
+    "@types/glob": "^8.1.0",
     "@types/node": "24.9.2",
-    "@types/pngjs": "^6.0.5",
     "@types/papaparse": "^5.3.16",
+    "@types/pngjs": "^6.0.5",
     "@types/qrcode": "^1.5.6",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
+    "cucumber-html-reporter": "^7.2.0",
     "eslint": "9.39.0",
     "eslint-config-next": "16.0.1",
+    "gherkin-lint": "^4.2.4",
+    "glob": "^11.0.3",
     "jsqr": "^1.4.0",
+    "playwright-bdd": "^8.4.1",
     "pngjs": "^7.0.0",
     "serve": "^14.2.5",
+    "ts-node": "^10.9.2",
     "typescript": "5.9.3"
   }
 }
