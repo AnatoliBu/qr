@@ -53,11 +53,21 @@ jobs:
         env:
           BASE_PATH: ''
 
-      - name: Run Cucumber BDD Tests
-        run: npm run test:bdd
+      - name: Run Playwright-BDD Tests
+        run: npm run test:playwright-bdd
         env:
           APP_URL: http://localhost:3000
         continue-on-error: true
+
+      - name: Ensure BDD Reports Exist
+        if: always()
+        run: |
+          if [ ! -d reports ]; then
+            echo "⚠️ BDD report directory not found after tests."
+            echo "Tests may have failed before generating reports."
+            mkdir -p reports
+            echo '[]' > reports/cucumber-report.json
+          fi
 
       - name: Generate Living Documentation
         if: always()

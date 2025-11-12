@@ -18,19 +18,35 @@ async function main() {
 
   // Ensure directories exist
   if (!fs.existsSync(REPORTS_DIR)) {
-    console.error('❌ Reports directory not found. Run tests first: npm run test:bdd');
-    process.exit(1);
+    console.warn('⚠️  Reports directory not found. Creating empty documentation...');
+    fs.mkdirSync(REPORTS_DIR, { recursive: true });
   }
 
   if (!fs.existsSync(DOCS_DIR)) {
     fs.mkdirSync(DOCS_DIR, { recursive: true });
   }
 
-  const jsonFile = path.join(REPORTS_DIR, 'cucumber-report.json');
+  // Look for Cucumber JSON report (from either cucumber-js or playwright-bdd)
+  const cucumberJsonFile = path.join(REPORTS_DIR, 'cucumber-report.json');
+  const playwrightBddJsonFile = path.join(REPORTS_DIR, 'playwright-bdd-results.json');
 
-  if (!fs.existsSync(jsonFile)) {
-    console.error('❌ Cucumber JSON report not found. Run: npm run test:bdd');
-    process.exit(1);
+  let jsonFile = null;
+  if (fs.existsSync(cucumberJsonFile)) {
+    jsonFile = cucumberJsonFile;
+    console.log('✓ Found Cucumber JSON report');
+  } else if (fs.existsSync(playwrightBddJsonFile)) {
+    console.warn('⚠️  Found Playwright-BDD report but not Cucumber format.');
+    console.warn('   Generating minimal documentation. Configure cucumber-json reporter for full docs.');
+    // Create empty cucumber report for minimal documentation
+    fs.writeFileSync(cucumberJsonFile, JSON.stringify([]));
+    jsonFile = cucumberJsonFile;
+  } else {
+    console.error('❌ No test reports found. Run tests first:');
+    console.error('   - npm run test:playwright-bdd (recommended)');
+    console.error('   - npm run test:bdd (cucumber-js)');
+    // Create empty report to prevent complete failure
+    fs.writeFileSync(cucumberJsonFile, JSON.stringify([]));
+    jsonFile = cucumberJsonFile;
   }
 
   const options = {

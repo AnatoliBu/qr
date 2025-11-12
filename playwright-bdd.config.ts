@@ -26,6 +26,7 @@ export default defineConfig({
     ['html', { outputFolder: 'reports/playwright-bdd-report', open: 'never' }],
     ['json', { outputFile: 'reports/playwright-bdd-results.json' }],
     ['junit', { outputFile: 'reports/playwright-bdd-junit.xml' }],
+    ['playwright-bdd/reporter/cucumber', { $type: 'json', outputFile: 'reports/cucumber-report.json' }],
     ['list']
   ],
 
