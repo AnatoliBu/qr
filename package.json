@@ -45,6 +45,7 @@
     "@cucumber/cucumber": "^12.2.0",
     "@cucumber/html-formatter": "^22.0.0",
     "@playwright/test": "^1.56.1",
+    "@types/glob": "^8.1.0",
     "@types/node": "24.9.2",
     "@types/papaparse": "^5.3.16",
     "@types/pngjs": "^6.0.5",
@@ -55,10 +56,12 @@
     "eslint": "9.39.0",
     "eslint-config-next": "16.0.1",
     "gherkin-lint": "^4.2.4",
+    "glob": "^11.0.3",
     "jsqr": "^1.4.0",
     "playwright-bdd": "^8.4.1",
     "pngjs": "^7.0.0",
     "serve": "^14.2.5",
+    "ts-node": "^10.9.2",
     "typescript": "5.9.3"
   }
 }
