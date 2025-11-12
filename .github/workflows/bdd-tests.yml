@@ -1,0 +1,105 @@
+name: BDD Tests & Living Documentation
+
+on:
+  push:
+    branches: [main, test, feature/**, spec/**]
+  pull_request:
+    branches: [main, test]
+
+jobs:
+  lint-specs:
+    name: Validate Gherkin Specifications
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint Gherkin files
+        run: npm run lint:gherkin
+
+      - name: Check TypeScript in specs
+        run: npm run typecheck:bdd
+
+      - name: Check spec coverage
+        run: npm run spec:coverage
+
+  bdd-tests:
+    name: Run BDD Tests
+    runs-on: ubuntu-22.04
+    needs: lint-specs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Build Next.js app
+        run: npm run build
+        env:
+          BASE_PATH: ''
+
+      - name: Run Cucumber BDD Tests
+        run: npm run test:bdd
+        env:
+          APP_URL: http://localhost:3000
+        continue-on-error: true
+
+      - name: Generate Living Documentation
+        if: always()
+        run: npm run docs:generate
+
+      - name: Upload BDD Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bdd-report
+          path: reports/
+          retention-days: 30
+
+      - name: Upload Living Documentation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: living-documentation
+          path: docs/living/
+          retention-days: 30
+
+  publish-docs:
+    name: Publish Living Documentation
+    runs-on: ubuntu-22.04
+    needs: bdd-tests
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Living Documentation
+        uses: actions/download-artifact@v4
+        with:
+          name: living-documentation
+          path: docs/living
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/living
+          publish_branch: gh-pages
+          enable_jekyll: false
+          commit_message: 'docs: Update living documentation'
