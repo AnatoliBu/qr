@@ -79,10 +79,10 @@ Given('я сгенерировал QR-код с URL {string}', async function (t
 
 Given('Telegram тема установлена как {string}', async function (this: QRWorld, theme: string) {
   // Mock Telegram WebApp API для установки темы
-  await this.page.evaluate((themeValue) => {
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.colorScheme = themeValue === 'темная' ? 'dark' : 'light';
-      window.Telegram.WebApp.themeParams = {
+  await this.page.evaluate((themeValue: string) => {
+    if ((window as any).Telegram?.WebApp) {
+      (window as any).Telegram.WebApp.colorScheme = themeValue === 'темная' ? 'dark' : 'light';
+      (window as any).Telegram.WebApp.themeParams = {
         bg_color: themeValue === 'темная' ? '#1c1c1d' : '#ffffff',
         text_color: themeValue === 'темная' ? '#ffffff' : '#000000',
         // ... другие параметры темы
@@ -361,9 +361,9 @@ Then('при нажатии кнопок должна срабатывать т�
 
   // Override Telegram API для трекинга
   await this.page.evaluate(() => {
-    if (window.Telegram?.WebApp?.HapticFeedback) {
-      const original = window.Telegram.WebApp.HapticFeedback.impactOccurred;
-      window.Telegram.WebApp.HapticFeedback.impactOccurred = (...args: any[]) => {
+    if ((window as any).Telegram?.WebApp?.HapticFeedback) {
+      const original = (window as any).Telegram.WebApp.HapticFeedback.impactOccurred;
+      (window as any).Telegram.WebApp.HapticFeedback.impactOccurred = (...args: any[]) => {
         (window as any).trackHaptic();
         original?.(...args);
       };
