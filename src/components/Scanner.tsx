@@ -70,6 +70,8 @@ export function Scanner() {
   const [flash, setFlash] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterSource, setFilterSource] = useState<"all" | "camera" | "file">("all");
 
   const isMobile = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -94,6 +96,48 @@ export function Scanner() {
     }
     return "Камера выключена";
   }, [active, paused, hasCamera, isLoadingCamera]);
+
+  const filteredResults = useMemo(() => {
+    let filtered = results;
+
+    // Filter by source
+    if (filterSource !== "all") {
+      filtered = filtered.filter(r => r.source === filterSource);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(r => r.text.toLowerCase().includes(query));
+    }
+
+    return filtered;
+  }, [results, filterSource, searchQuery]);
+
+  const handleDeleteResult = useCallback((timestamp: number) => {
+    setResults(prev => prev.filter(r => r.timestamp !== timestamp));
+  }, []);
+
+  const handleClearAll = useCallback(() => {
+    setResults([]);
+  }, []);
+
+  const handleExportResults = useCallback(() => {
+    const data = JSON.stringify(results, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `qr-scan-history-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [results]);
+
+  const handleCopyToClipboard = useCallback((text: string) => {
+    navigator.clipboard?.writeText(text);
+  }, []);
 
   const clearTimeouts = useCallback(() => {
     if (pauseTimeoutRef.current) {
@@ -660,7 +704,7 @@ export function Scanner() {
             <p className="hint">Нет результатов по фильтру</p>
           ) : (
             <ul>
-              {results.map((item) => (
+              {filteredResults.map((item) => (
                 <li key={`${item.timestamp}-${item.text}`}>
                   <span className="pill pill__small">{item.source === "camera" ? "📷" : "🖼️"}</span>
                   <code style={{ flex: 1, wordBreak: "break-all" }}>{item.text}</code>

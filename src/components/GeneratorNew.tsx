@@ -7,7 +7,11 @@ import { bytesToBinaryString } from "@/lib/binary";
 import { useDraft } from "@/hooks/useDraft";
 import { QR_SYSTEM, calculateMarginPx } from "@/lib/qrConstants";
 import { triggerTelegramHaptic } from "@/hooks/useTelegramHaptic";
+import { getTemplates, saveTemplate, deleteTemplate, PREDEFINED_TEMPLATES } from "@/lib/designTemplates";
+import type { DesignTemplate } from "@/lib/designTemplates";
 import styles from "./Generator.module.css";
+import animationStyles from "./QRAnimations.module.css";
+import frameStyles from "./QRFrames.module.css";
 import {
   SVG_NS,
   applyCustomDotShape,
@@ -567,24 +571,24 @@ export function GeneratorNew() {
 
   const handleSaveTemplate = useCallback(() => {
     if (!templateName.trim()) {
-      triggerHaptic('light');
+      triggerTelegramHaptic('light');
       return;
     }
     const template = saveTemplate(templateName.trim(), draft.style);
     setSavedTemplates(getTemplates());
     setTemplateName("");
-    triggerHaptic('heavy');
+    triggerTelegramHaptic('heavy');
   }, [templateName, draft.style]);
 
   const handleLoadTemplate = useCallback((template: DesignTemplate | typeof PREDEFINED_TEMPLATES[0]) => {
     updateStyle(template.style);
-    triggerHaptic('medium');
+    triggerTelegramHaptic('medium');
   }, [updateStyle]);
 
   const handleDeleteTemplate = useCallback((id: string) => {
     deleteTemplate(id);
     setSavedTemplates(getTemplates());
-    triggerHaptic('light');
+    triggerTelegramHaptic('light');
   }, []);
 
   const handleMarginChange = useCallback(
@@ -1812,7 +1816,7 @@ export function GeneratorNew() {
                 })}
                 onClick={() => {
                   updateStyle({ frame: frame.value });
-                  triggerHaptic('light');
+                  triggerTelegramHaptic('light');
                 }}
               >
                 <div className={styles.templateName}>{frame.emoji} {frame.label}</div>
@@ -1956,7 +1960,7 @@ export function GeneratorNew() {
                 })}
                 onClick={() => {
                   updateStyle({ animation: anim.value });
-                  triggerHaptic('light');
+                  triggerTelegramHaptic('light');
                 }}
               >
                 <div className={styles.templateName}>{anim.emoji} {anim.label}</div>
