@@ -1,38 +1,38 @@
-/* Modern QR Generator UI with Gradient Design */
+/* Modern QR Generator UI with 2025 Design Standards */
 
 .generator {
-  animation: fadeIn 0.5s ease;
+  animation: fadeIn 0.5s var(--ease-smooth);
 }
 
 .header {
   text-align: center;
-  margin-bottom: 24px;
-  animation: fadeInDown 0.5s ease;
+  margin-bottom: var(--spacing-lg);
+  animation: fadeInDown 0.5s var(--ease-smooth);
 }
 
 .headerTitle {
-  font-size: 28px;
+  font-size: var(--font-hero);
   font-weight: 700;
-  margin-bottom: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin-bottom: var(--spacing-xs);
+  background: var(--gradient-purple);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .headerSubtitle {
-  font-size: 14px;
+  font-size: var(--font-label);
   opacity: 0.6;
   color: var(--hint);
 }
 
 .qrPreview {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 24px;
-  padding: clamp(16px, 6vw, 32px);
-  margin: 0 auto 24px;
+  background: var(--gradient-purple);
+  border-radius: var(--spacing-lg);
+  padding: clamp(var(--spacing-md), 6vw, var(--spacing-xl));
+  margin: 0 auto var(--spacing-lg);
   width: min(100%, 420px);
-  max-width: min(420px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - var(--spacing-xl)));
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
@@ -41,7 +41,8 @@
   min-height: clamp(240px, 60vw, 320px);
   position: relative;
   overflow: hidden;
-  animation: fadeIn 0.6s ease;
+  animation: fadeIn 0.6s var(--ease-smooth);
+  box-shadow: var(--elevation-3);
 }
 
 .qrPreview::before {
@@ -56,9 +57,9 @@
 }
 
 .qrCode {
-  padding: clamp(24px, 8vw, 40px);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  padding: clamp(var(--spacing-lg), 8vw, var(--spacing-xxl));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-4);
   position: relative;
   z-index: 1;
   display: flex;
@@ -113,45 +114,47 @@
 
 .tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-lg);
   background: var(--surface);
   padding: 4px;
-  border-radius: 12px;
-  animation: fadeIn 0.6s ease;
+  border-radius: var(--radius-md);
+  animation: fadeIn 0.6s var(--ease-smooth);
 }
 
 .tab {
   flex: 1;
-  padding: 12px;
+  padding: var(--spacing-sm);
   border: none;
   background: transparent;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-label);
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
   color: var(--text);
   min-height: var(--tap-target-min);
 }
 
 .tab:hover {
-  background: rgba(102, 126, 234, 0.06);
+  background: var(--interactive-bg);
+  transform: translateY(-1px);
 }
 
 .tab:active {
-  background: rgba(102, 126, 234, 0.12);
+  background: var(--interactive-bg-active);
+  transform: translateY(0);
 }
 
 .tabActive {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.18) 0%, rgba(118, 75, 162, 0.18) 100%);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  background: var(--interactive-bg-hover);
+  box-shadow: var(--elevation-2);
   color: var(--text);
 }
 
 .tabContent {
   display: none;
-  animation: fadeIn 0.4s ease;
+  animation: fadeIn 0.4s var(--ease-smooth);
 }
 
 .tabContentActive {
@@ -159,27 +162,27 @@
 }
 
 .inputGroup {
-  margin-bottom: 20px;
-  animation: fadeInUp 0.6s ease;
+  margin-bottom: var(--spacing-lg);
+  animation: fadeInUp 0.6s var(--ease-smooth);
 }
 
 .inputLabel {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: var(--font-label);
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-xs);
   color: var(--text);
 }
 
 .badge {
   display: inline-block;
-  padding: 4px 8px;
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
-  border-radius: 6px;
-  font-size: 11px;
+  padding: 4px var(--spacing-xs);
+  background: var(--interactive-bg);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-small);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -189,22 +192,28 @@
 .textarea,
 .select {
   width: 100%;
-  padding: 14px 16px;
-  border: 2px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  font-size: 16px;
+  padding: var(--spacing-md);
+  border: 2px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-body);
   background: var(--surface);
   color: var(--text);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
   min-height: var(--tap-target-min);
+}
+
+.input:hover,
+.textarea:hover,
+.select:hover {
+  border-color: var(--interactive-border);
 }
 
 .input:focus,
 .textarea:focus,
 .select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 
 .textarea {
@@ -216,8 +225,8 @@
 .templateGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
 }
 
 @media (min-width: 480px) {
@@ -227,11 +236,11 @@
 }
 
 .templateCard {
-  padding: 12px;
-  border: 2px solid rgba(255,255,255,0.06);
-  border-radius: 10px;
+  padding: var(--spacing-sm);
+  border: 2px solid var(--surface-border);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
   background: var(--surface);
   min-height: 70px;
   display: flex;
@@ -242,40 +251,44 @@
 }
 
 .templateCard:hover {
-  border-color: rgba(102, 126, 234, 0.5);
-  background: rgba(102, 126, 234, 0.03);
+  border-color: var(--interactive-border-hover);
+  background: var(--interactive-bg);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
 }
 
 .templateCard:active {
-  background: rgba(102, 126, 234, 0.08);
+  background: var(--interactive-bg-active);
+  transform: translateY(0);
 }
 
 .templateCardActive {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
+  border-color: var(--accent);
+  background: var(--interactive-bg-hover);
+  box-shadow: var(--elevation-2);
 }
 
 .templateName {
   font-weight: 600;
   margin-bottom: 2px;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-label);
 }
 
 .templateDesc {
-  font-size: 11px;
+  font-size: var(--font-small);
   opacity: 0.6;
   color: var(--hint);
   line-height: 1.3;
 }
 
 .infoCard {
-  background: rgba(102, 126, 234, 0.05);
-  border-left: 3px solid #667eea;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 13px;
+  background: var(--interactive-bg);
+  border-left: 3px solid var(--accent);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-label);
   line-height: 1.5;
   color: var(--text);
 }
@@ -288,17 +301,17 @@
 .styleGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
 }
 
 .styleOption {
-  padding: 20px;
-  border: 2px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
+  padding: var(--spacing-lg);
+  border: 2px solid var(--surface-border);
+  border-radius: var(--radius-md);
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
   background: var(--surface);
   min-height: var(--tap-target-min);
   display: flex;
@@ -308,26 +321,30 @@
 }
 
 .styleOption:hover {
-  border-color: rgba(102, 126, 234, 0.5);
-  background: rgba(102, 126, 234, 0.03);
+  border-color: var(--interactive-border-hover);
+  background: var(--interactive-bg);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
 }
 
 .styleOption:active {
-  background: rgba(102, 126, 234, 0.08);
+  background: var(--interactive-bg-active);
+  transform: translateY(0);
 }
 
 .styleOptionActive {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
+  border-color: var(--accent);
+  background: var(--interactive-bg-hover);
+  box-shadow: var(--elevation-2);
 }
 
 .stylePreview {
-  font-size: 32px;
-  margin-bottom: 8px;
+  font-size: var(--font-hero);
+  margin-bottom: var(--spacing-xs);
 }
 
 .styleLabel {
-  font-size: 13px;
+  font-size: var(--font-label);
   font-weight: 600;
   color: var(--text);
 }
@@ -335,8 +352,8 @@
 .colorPickerGroup {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
 }
 
 .colorPicker {
@@ -345,18 +362,18 @@
 
 .fieldGrid {
   display: grid;
-  gap: 12px;
+  gap: var(--spacing-sm);
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .fieldControl {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-xs);
 }
 
 .fieldTitle {
-  font-size: 11px;
+  font-size: var(--font-small);
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -366,14 +383,14 @@
 .colorPreview {
   width: 100%;
   height: 60px;
-  border-radius: 12px;
-  border: 2px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--surface-border);
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--spacing-sm);
   font-weight: 600;
   color: white;
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
@@ -381,10 +398,13 @@
 
 .colorPreview:hover {
   border-color: rgba(255,255,255,0.2);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
 }
 
 .colorPreview:active {
   opacity: 0.85;
+  transform: translateY(0);
 }
 
 .colorInput {
@@ -400,32 +420,38 @@
 .logoControls {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--spacing-md);
 }
 
 .logoButtons {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
 .logoUploadButton {
   position: relative;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 2px dashed rgba(102, 126, 234, 0.5);
-  background: rgba(102, 126, 234, 0.08);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--interactive-border-hover);
+  background: var(--interactive-bg);
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
   text-align: center;
   min-width: 180px;
 }
 
 .logoUploadButton:hover {
-  border-color: rgba(102, 126, 234, 0.8);
-  background: rgba(102, 126, 234, 0.12);
+  border-color: var(--accent);
+  background: var(--interactive-bg-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
+}
+
+.logoUploadButton:active {
+  transform: translateY(0);
 }
 
 .logoUploadInput {
@@ -438,43 +464,49 @@
 }
 
 .logoRemoveButton {
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--surface-border);
   background: transparent;
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
 }
 
 .logoRemoveButton:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--interactive-border);
+  background: var(--interactive-bg);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
+}
+
+.logoRemoveButton:active {
+  transform: translateY(0);
 }
 
 .logoPreview {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
   background: var(--surface);
-  border: 2px solid rgba(255, 255, 255, 0.06);
+  border: 2px solid var(--surface-border);
 }
 
 .logoPreview img {
   width: 56px;
   height: 56px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   object-fit: contain;
   background: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--elevation-2);
   padding: 4px;
 }
 
 .logoHint {
-  font-size: 13px;
+  font-size: var(--font-label);
   line-height: 1.4;
   color: var(--hint);
 }
@@ -482,51 +514,51 @@
 .gradientSection {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 12px;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-sm);
 }
 
 .gradientBlock {
-  padding: 16px;
-  border-radius: 16px;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  border: 2px solid rgba(255, 255, 255, 0.06);
+  border: 2px solid var(--surface-border);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--spacing-md);
 }
 
 .gradientHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--spacing-sm);
   flex-wrap: wrap;
 }
 
 .gradientName {
-  font-size: 14px;
+  font-size: var(--font-label);
   font-weight: 600;
   color: var(--text);
 }
 
 .gradientColorGroup {
   display: grid;
-  gap: 12px;
+  gap: var(--spacing-sm);
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .gradientColorItem {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-xs);
 }
 
 .checkboxRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 14px;
+  gap: var(--spacing-sm);
+  font-size: var(--font-label);
   font-weight: 500;
   color: var(--text);
 }
@@ -537,16 +569,16 @@
 }
 
 .rangeGroup {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .rangeValue {
   display: inline-block;
-  background: #667eea;
+  background: var(--accent);
   color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
+  padding: 4px var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  font-size: var(--spacing-sm);
   font-weight: 600;
 }
 
@@ -556,7 +588,7 @@
   border-radius: 3px;
   background: rgba(255,255,255,0.1);
   outline: none;
-  margin-top: 12px;
+  margin-top: var(--spacing-sm);
   -webkit-appearance: none;
   appearance: none;
 }
@@ -564,38 +596,46 @@
 .rangeInput::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: var(--spacing-lg);
+  height: var(--spacing-lg);
   border-radius: 50%;
-  background: #667eea;
+  background: var(--accent);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
-  transition: box-shadow 0.15s ease;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-fast) var(--ease-smooth);
 }
 
 .rangeInput::-webkit-slider-thumb:hover {
-  box-shadow: 0 3px 12px rgba(102, 126, 234, 0.6);
+  box-shadow: var(--shadow-lg);
+  transform: scale(1.1);
 }
 
 .rangeInput::-webkit-slider-thumb:active {
-  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.8);
+  box-shadow: var(--shadow-sm);
+  transform: scale(0.95);
 }
 
 .rangeInput::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: var(--spacing-lg);
+  height: var(--spacing-lg);
   border-radius: 50%;
-  background: #667eea;
+  background: var(--accent);
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-fast) var(--ease-smooth);
+}
+
+.rangeInput::-moz-range-thumb:hover {
+  box-shadow: var(--shadow-lg);
+  transform: scale(1.1);
 }
 
 .rangeControls {
-  margin-top: 12px;
+  margin-top: var(--spacing-sm);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-xs);
 }
 
 .rangeStepper {
@@ -604,18 +644,20 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: none;
-  background: rgba(102, 126, 234, 0.12);
+  background: var(--interactive-bg-hover);
   color: var(--text);
-  font-size: 20px;
+  font-size: var(--font-section);
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.15s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
 }
 
 .rangeStepper:hover {
-  background: rgba(102, 126, 234, 0.22);
+  background: var(--interactive-bg-active);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
 }
 
 .rangeStepper:active {
@@ -624,32 +666,32 @@
 
 .rangeNumber {
   width: 72px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 2px solid rgba(255, 255, 255, 0.08);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--surface-border);
   background: var(--surface);
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--font-label);
   font-weight: 600;
   text-align: center;
 }
 
 .rangeNumber:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 
 .rangeHint {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: var(--spacing-xs);
+  font-size: var(--spacing-sm);
   color: var(--hint);
 }
 
 .divider {
   height: 1px;
-  background: rgba(255,255,255,0.1);
-  margin: 24px 0;
+  background: var(--surface-border);
+  margin: var(--spacing-lg) 0;
   opacity: 0.5;
 }
 
@@ -674,24 +716,24 @@
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  transition: .4s;
+  transition: var(--transition-normal) var(--ease-smooth);
   border-radius: 26px;
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 20px;
-  width: 20px;
+  height: var(--spacing-lg);
+  width: var(--spacing-lg);
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: .4s;
+  transition: var(--transition-normal) var(--ease-smooth);
   border-radius: 50%;
 }
 
 .switchInput:checked + .slider {
-  background-color: #667eea;
+  background-color: var(--accent);
 }
 
 .switchInput:checked + .slider:before {
@@ -703,57 +745,63 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px;
+  padding: var(--spacing-md);
   background: var(--bg);
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid var(--surface-border);
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-sm);
   z-index: 100;
+  box-shadow: var(--elevation-2);
 }
 
 .btn {
   flex: 1;
-  padding: 16px;
+  padding: var(--spacing-md);
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: var(--radius-md);
+  font-size: var(--spacing-md);
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s ease, transform 0.1s ease;
+  transition: all var(--transition-fast) var(--ease-smooth);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--spacing-xs);
   min-height: var(--tap-target-min);
 }
 
 .btnPrimary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-purple);
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .btnPrimary:hover {
-  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-3);
 }
 
 .btnPrimary:active {
-  transform: scale(0.98);
-  opacity: 0.85;
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .btnSecondary {
   background: var(--surface);
   color: var(--text);
+  border: 2px solid var(--surface-border);
 }
 
 .btnSecondary:hover {
-  background: rgba(102, 126, 234, 0.08);
+  background: var(--interactive-bg);
+  border-color: var(--interactive-border);
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-1);
 }
 
 .btnSecondary:active {
-  transform: scale(0.98);
-  background: rgba(102, 126, 234, 0.12);
+  transform: translateY(0);
+  background: var(--interactive-bg-active);
 }
 
 .tab:focus-visible,
@@ -762,23 +810,18 @@
 .colorPreview:focus-visible,
 .btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(15, 17, 26, 0.45), 0 0 0 4px rgba(102, 126, 234, 0.45);
-  background-color: rgba(102, 126, 234, 0.12);
+  box-shadow: var(--focus-ring);
+  background-color: var(--interactive-bg-hover);
 }
 
 @media (prefers-color-scheme: dark) {
-  .tabActive {
-    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
-    background: linear-gradient(135deg, rgba(100, 181, 246, 0.18) 0%, rgba(118, 75, 162, 0.18) 100%);
-  }
-
   .tab:focus-visible,
   .templateCard:focus-visible,
   .styleOption:focus-visible,
   .colorPreview:focus-visible,
   .btn:focus-visible {
-    box-shadow: 0 0 0 2px rgba(10, 10, 10, 0.6), 0 0 0 4px rgba(100, 181, 246, 0.55);
-    background-color: rgba(100, 181, 246, 0.18);
+    box-shadow: var(--focus-ring);
+    background-color: var(--interactive-bg-hover);
   }
 }
 
@@ -789,11 +832,12 @@
   transform: translate(-50%, -50%);
   background: rgba(0,0,0,0.8);
   color: white;
-  padding: 20px 40px;
-  border-radius: 12px;
+  padding: var(--spacing-lg) var(--spacing-xxl);
+  border-radius: var(--radius-md);
   font-weight: 600;
   z-index: 1000;
   display: none;
+  box-shadow: var(--elevation-4);
 }
 
 .loadingActive {
