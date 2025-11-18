@@ -6,7 +6,11 @@ import { QRType, getTypeDefinition } from "@/lib/qrTypes";
 import { bytesToBinaryString } from "@/lib/binary";
 import { useDraft } from "@/hooks/useDraft";
 import { QR_SYSTEM, calculateMarginPx } from "@/lib/qrConstants";
+import { getTemplates, saveTemplate, deleteTemplate, PREDEFINED_TEMPLATES } from "@/lib/designTemplates";
+import type { DesignTemplate } from "@/lib/designTemplates";
 import styles from "./Generator.module.css";
+import animationStyles from "./QRAnimations.module.css";
+import frameStyles from "./QRFrames.module.css";
 
 // Haptic feedback helper
 function triggerHaptic(style: 'light' | 'medium' | 'heavy' = 'medium') {
@@ -67,6 +71,8 @@ type EyeDotStyle = "square" | "dot";
 type ShapeType = "square" | "circle";
 type GradientType = "linear" | "radial";
 type GradientKey = "dotsGradient" | "backgroundGradient" | "cornersGradient";
+type AnimationType = "none" | "pulse" | "rotate" | "float" | "bounce" | "swing" | "glow" | "shake" | "flip" | "wobble" | "zoom" | "fade" | "3dRotate" | "neon" | "heartbeat";
+type FrameType = "none" | "classic" | "modern" | "minimal" | "bold" | "neon" | "dashed" | "shadow" | "sticker" | "premium" | "fun";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -194,6 +200,8 @@ interface StyleOptions {
   useCornersGradient: boolean;
   cornersGradient?: Gradient;
   hideBackgroundDots: boolean;
+  animation: AnimationType;
+  frame: FrameType;
 }
 
 interface GeneratorDraft {
@@ -241,7 +249,9 @@ const defaultStyle: StyleOptions = {
       { offset: 1, color: "#4a5568" }
     ]
   },
-  hideBackgroundDots: true
+  hideBackgroundDots: true,
+  animation: "none",
+  frame: "none"
 };
 
 const MAX_PAYLOAD_BYTES = 2953;
@@ -305,6 +315,38 @@ const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
   { value: "circle", label: "Круг" }
 ];
 
+const ANIMATION_OPTIONS: { value: AnimationType; label: string; emoji: string }[] = [
+  { value: "none", label: "Без анимации", emoji: "⏹️" },
+  { value: "pulse", label: "Пульсация", emoji: "💓" },
+  { value: "rotate", label: "Вращение", emoji: "🔄" },
+  { value: "float", label: "Плавание", emoji: "🎈" },
+  { value: "bounce", label: "Подпрыгивание", emoji: "⚽" },
+  { value: "swing", label: "Качание", emoji: "🎪" },
+  { value: "glow", label: "Свечение", emoji: "✨" },
+  { value: "shake", label: "Тряска", emoji: "📳" },
+  { value: "flip", label: "Переворот", emoji: "🔃" },
+  { value: "wobble", label: "Колебание", emoji: "〰️" },
+  { value: "zoom", label: "Зум", emoji: "🔍" },
+  { value: "fade", label: "Затухание", emoji: "🌫️" },
+  { value: "3dRotate", label: "3D Вращение", emoji: "🎲" },
+  { value: "neon", label: "Неон", emoji: "💡" },
+  { value: "heartbeat", label: "Сердцебиение", emoji: "❤️" }
+];
+
+const FRAME_OPTIONS: { value: FrameType; label: string; emoji: string }[] = [
+  { value: "none", label: "Без рамки", emoji: "⬜" },
+  { value: "classic", label: "Классическая", emoji: "🎯" },
+  { value: "modern", label: "Современная", emoji: "💎" },
+  { value: "minimal", label: "Минимал", emoji: "⚪" },
+  { value: "bold", label: "Жирная", emoji: "🔲" },
+  { value: "neon", label: "Неоновая", emoji: "🌟" },
+  { value: "dashed", label: "Пунктир", emoji: "➖" },
+  { value: "shadow", label: "С тенью", emoji: "☁️" },
+  { value: "sticker", label: "Стикер", emoji: "🏷️" },
+  { value: "premium", label: "Премиум", emoji: "👑" },
+  { value: "fun", label: "Весёлая", emoji: "🎉" }
+];
+
 // Константы перенесены в /src/lib/qrConstants.ts
 
 export function GeneratorNew() {
@@ -353,6 +395,13 @@ export function GeneratorNew() {
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const qrRef = useRef<any>(null);
+  const [savedTemplates, setSavedTemplates] = useState<DesignTemplate[]>([]);
+  const [templateName, setTemplateName] = useState("");
+
+  // Load saved templates on mount
+  useEffect(() => {
+    setSavedTemplates(getTemplates());
+  }, []);
 
   const ensurePreviewFits = useCallback(() => {
     const container = containerRef.current;
@@ -431,6 +480,28 @@ export function GeneratorNew() {
     },
     [setDraft]
   );
+
+  const handleSaveTemplate = useCallback(() => {
+    if (!templateName.trim()) {
+      triggerHaptic('light');
+      return;
+    }
+    const template = saveTemplate(templateName.trim(), draft.style);
+    setSavedTemplates(getTemplates());
+    setTemplateName("");
+    triggerHaptic('heavy');
+  }, [templateName, draft.style]);
+
+  const handleLoadTemplate = useCallback((template: DesignTemplate | typeof PREDEFINED_TEMPLATES[0]) => {
+    updateStyle(template.style);
+    triggerHaptic('medium');
+  }, [updateStyle]);
+
+  const handleDeleteTemplate = useCallback((id: string) => {
+    deleteTemplate(id);
+    setSavedTemplates(getTemplates());
+    triggerHaptic('light');
+  }, []);
 
   const handleMarginChange = useCallback(
     (percent: number) => {
@@ -887,11 +958,49 @@ export function GeneratorNew() {
     return relativeLuminance(rgb) > 0.5;
   };
 
+  const getAnimationClassName = useCallback(() => {
+    const animationMap: Record<AnimationType, string> = {
+      "none": animationStyles.animationNone,
+      "pulse": animationStyles.animationPulse,
+      "rotate": animationStyles.animationRotate,
+      "float": animationStyles.animationFloat,
+      "bounce": animationStyles.animationBounce,
+      "swing": animationStyles.animationSwing,
+      "glow": animationStyles.animationGlow,
+      "shake": animationStyles.animationShake,
+      "flip": animationStyles.animationFlip,
+      "wobble": animationStyles.animationWobble,
+      "zoom": animationStyles.animationZoom,
+      "fade": animationStyles.animationFade,
+      "3dRotate": animationStyles.animation3DRotate,
+      "neon": animationStyles.animationNeon,
+      "heartbeat": animationStyles.animationHeartbeat
+    };
+    return animationMap[draft.style.animation] || animationStyles.animationNone;
+  }, [draft.style.animation]);
+
+  const getFrameClassName = useCallback(() => {
+    const frameMap: Record<FrameType, string> = {
+      "none": frameStyles.frameNone,
+      "classic": frameStyles.frameClassic,
+      "modern": frameStyles.frameModern,
+      "minimal": frameStyles.frameMinimal,
+      "bold": frameStyles.frameBold,
+      "neon": frameStyles.frameNeon,
+      "dashed": frameStyles.frameDashed,
+      "shadow": frameStyles.frameShadow,
+      "sticker": frameStyles.frameSticker,
+      "premium": frameStyles.framePremium,
+      "fun": frameStyles.frameFun
+    };
+    return frameMap[draft.style.frame] || frameStyles.frameNone;
+  }, [draft.style.frame]);
+
   return (
     <section className={styles.generator}>
       <div className={classNames(styles.qrPreview, "preview")}>
-        <div className={classNames(styles.qrCode, "preview__canvas")}>
-          <div ref={containerRef} className={styles.qrCanvas} />
+        <div className={classNames(styles.qrCode, "preview__canvas", frameStyles.frameWrapper, getFrameClassName())}>
+          <div ref={containerRef} className={classNames(styles.qrCanvas, getAnimationClassName())} />
         </div>
       </div>
 
@@ -1005,6 +1114,104 @@ export function GeneratorNew() {
 
       {/* Style Tab */}
       <div className={classNames(styles.tabContent, { [styles.tabContentActive]: activeTab === "style" })}>
+        <div className={styles.inputGroup}>
+          <label className={styles.inputLabel}>
+            <span>✨ Готовые шаблоны</span>
+            <span className={styles.badge}>Быстрый старт</span>
+          </label>
+          <div className={styles.templateGrid}>
+            {PREDEFINED_TEMPLATES.map((template, index) => (
+              <div
+                key={`predefined-${index}`}
+                className={styles.templateCard}
+                onClick={() => handleLoadTemplate(template)}
+              >
+                <div className={styles.templateName}>{template.name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {savedTemplates.length > 0 && (
+          <>
+            <div className={styles.divider}></div>
+            <div className={styles.inputGroup}>
+              <label className={styles.inputLabel}>
+                <span>💾 Мои шаблоны</span>
+              </label>
+              <div className={styles.templateGrid}>
+                {savedTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className={styles.templateCard}
+                    style={{ position: "relative" }}
+                  >
+                    <div
+                      onClick={() => handleLoadTemplate(template)}
+                      style={{ flex: 1, cursor: "pointer" }}
+                    >
+                      <div className={styles.templateName}>{template.name}</div>
+                      <div className={styles.templateDesc}>
+                        {new Date(template.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTemplate(template.id);
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: "4px",
+                        right: "4px",
+                        background: "rgba(239, 68, 68, 0.1)",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        fontSize: "10px"
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className={styles.divider}></div>
+
+        <div className={styles.inputGroup}>
+          <label className={styles.inputLabel}>
+            <span>💾 Сохранить текущий дизайн</span>
+          </label>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="Название шаблона..."
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handleSaveTemplate();
+                }
+              }}
+            />
+            <button
+              className={classNames(styles.btn, styles.btnPrimary)}
+              onClick={handleSaveTemplate}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              Сохранить
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.divider}></div>
+
         <div className={styles.inputGroup}>
           <label className={styles.inputLabel}>
             <span>🎭 Стиль QR-кода</span>
@@ -1567,6 +1774,34 @@ export function GeneratorNew() {
 
         <div className={styles.divider}></div>
 
+        <div className={styles.inputGroup}>
+          <label className={styles.inputLabel}>
+            <span>🖼️ Рамка QR-кода</span>
+            <span className={styles.badge}>С CTA текстом</span>
+          </label>
+          <div className={styles.templateGrid}>
+            {FRAME_OPTIONS.map((frame) => (
+              <div
+                key={frame.value}
+                className={classNames(styles.templateCard, {
+                  [styles.templateCardActive]: draft.style.frame === frame.value
+                })}
+                onClick={() => {
+                  updateStyle({ frame: frame.value });
+                  triggerHaptic('light');
+                }}
+              >
+                <div className={styles.templateName}>{frame.emoji} {frame.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className={styles.infoCard}>
+            💡 <strong>Совет:</strong> Рамки включают призыв к действию (CTA), который привлекает внимание к QR-коду.
+          </div>
+        </div>
+
+        <div className={styles.divider}></div>
+
         <div className={styles.templateGrid}>
           {COLOR_PRESETS.map((preset) => (
             <div
@@ -1678,6 +1913,34 @@ export function GeneratorNew() {
           </div>
           <div className={styles.rangeHint}>
             В процентах от размера QR. 8% = стандарт, 0% = без отступа.
+          </div>
+        </div>
+
+        <div className={styles.divider}></div>
+
+        <div className={styles.inputGroup}>
+          <label className={styles.inputLabel}>
+            <span>🎬 Анимация QR-кода</span>
+            <span className={styles.badge}>Новинка!</span>
+          </label>
+          <div className={styles.templateGrid}>
+            {ANIMATION_OPTIONS.map((anim) => (
+              <div
+                key={anim.value}
+                className={classNames(styles.templateCard, {
+                  [styles.templateCardActive]: draft.style.animation === anim.value
+                })}
+                onClick={() => {
+                  updateStyle({ animation: anim.value });
+                  triggerHaptic('light');
+                }}
+              >
+                <div className={styles.templateName}>{anim.emoji} {anim.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className={styles.infoCard}>
+            💡 <strong>Совет:</strong> Анимации работают только в превью. При экспорте сохраняется статичное изображение.
           </div>
         </div>
 

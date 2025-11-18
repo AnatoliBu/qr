@@ -1,0 +1,323 @@
+/* QR Code Frames - Decorative borders with CTA text */
+
+/* Base frame wrapper */
+.frameWrapper {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* No frame */
+.frameNone {
+  /* No additional styling */
+}
+
+/* Classic frame - simple rounded border */
+.frameClassic {
+  border: 8px solid #667eea;
+  border-radius: 24px;
+  padding: 16px;
+  background: white;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+}
+
+.frameClassic::after {
+  content: "SCAN ME";
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #667eea;
+  color: white;
+  padding: 6px 20px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Modern frame - gradient border */
+.frameModern {
+  border: 6px solid transparent;
+  border-radius: 20px;
+  padding: 16px;
+  background: white;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.frameModern::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 6px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.frameModern::after {
+  content: "👆 SCAN HERE";
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 8px 24px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+/* Minimal frame - thin border with text */
+.frameMinimal {
+  border: 3px solid #667eea;
+  border-radius: 16px;
+  padding: 20px;
+  background: white;
+}
+
+.frameMinimal::after {
+  content: "Scan to view";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  color: #667eea;
+  padding: 4px 16px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Bold frame - thick colorful border */
+.frameBold {
+  border: 12px solid #667eea;
+  border-radius: 28px;
+  padding: 12px;
+  background: #f0f4ff;
+  box-shadow:
+    0 12px 32px rgba(102, 126, 234, 0.25),
+    inset 0 0 0 3px white;
+}
+
+.frameBold::after {
+  content: "📱 SCAN NOW";
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #667eea;
+  color: white;
+  padding: 10px 28px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Neon frame - glowing border */
+.frameNeon {
+  border: 4px solid #667eea;
+  border-radius: 20px;
+  padding: 16px;
+  background: #0a0e27;
+  box-shadow:
+    0 0 10px rgba(102, 126, 234, 0.5),
+    0 0 20px rgba(102, 126, 234, 0.3),
+    0 0 30px rgba(102, 126, 234, 0.2),
+    inset 0 0 10px rgba(102, 126, 234, 0.1);
+  animation: neonPulse 2s ease-in-out infinite;
+}
+
+@keyframes neonPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 10px rgba(102, 126, 234, 0.5),
+      0 0 20px rgba(102, 126, 234, 0.3),
+      0 0 30px rgba(102, 126, 234, 0.2),
+      inset 0 0 10px rgba(102, 126, 234, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 20px rgba(102, 126, 234, 0.8),
+      0 0 30px rgba(102, 126, 234, 0.5),
+      0 0 40px rgba(102, 126, 234, 0.3),
+      inset 0 0 15px rgba(102, 126, 234, 0.2);
+  }
+}
+
+.frameNeon::after {
+  content: "⚡ SCAN ME ⚡";
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0a0e27;
+  color: #667eea;
+  padding: 6px 20px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  border: 2px solid #667eea;
+  box-shadow:
+    0 0 10px rgba(102, 126, 234, 0.6),
+    0 0 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Dashed frame - creative dashed border */
+.frameDashed {
+  border: 4px dashed #667eea;
+  border-radius: 16px;
+  padding: 20px;
+  background: white;
+}
+
+.frameDashed::after {
+  content: "→ Point & Scan";
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  color: #667eea;
+  padding: 6px 18px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 2px solid #667eea;
+}
+
+/* Shadow frame - elevated with shadow */
+.frameShadow {
+  border: 2px solid #e0e7ff;
+  border-radius: 24px;
+  padding: 20px;
+  background: white;
+  box-shadow:
+    0 20px 40px rgba(102, 126, 234, 0.15),
+    0 10px 20px rgba(102, 126, 234, 0.1);
+}
+
+.frameShadow::after {
+  content: "Scan QR Code";
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 18px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Sticker frame - fun sticker style */
+.frameSticker {
+  border: 8px solid white;
+  border-radius: 20px;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.15),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+  transform: rotate(-2deg);
+}
+
+.frameSticker::after {
+  content: "📲 TAP TO SCAN";
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%) rotate(2deg);
+  background: #ff6b35;
+  color: white;
+  padding: 8px 24px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4);
+  border: 3px solid white;
+}
+
+/* Premium frame - luxury gold style */
+.framePremium {
+  border: 6px solid;
+  border-image: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) 1;
+  border-radius: 24px;
+  padding: 18px;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  box-shadow:
+    0 16px 36px rgba(245, 158, 11, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.framePremium::before {
+  content: '✨';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  font-size: 20px;
+}
+
+.framePremium::after {
+  content: "VIP ACCESS - SCAN";
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  padding: 8px 22px;
+  border-radius: 14px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.4);
+}
+
+/* Fun frame - playful colorful style */
+.frameFun {
+  border: 6px solid;
+  border-image: linear-gradient(135deg, #f472b6, #a78bfa, #60a5fa, #34d399) 1;
+  border-radius: 20px;
+  padding: 16px;
+  background: white;
+  position: relative;
+}
+
+.frameFun::after {
+  content: "🎉 SCAN & ENJOY";
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f472b6 0%, #a78bfa 100%);
+  color: white;
+  padding: 8px 24px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  box-shadow: 0 6px 16px rgba(244, 114, 182, 0.4);
+}
