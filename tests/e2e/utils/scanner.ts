@@ -93,7 +93,7 @@ export async function waitForNewResult(
  * Gets the error message if any
  */
 export async function getErrorMessage(page: Page): Promise<string | null> {
-  const errorText = page.locator('.scanner__video .error-text');
+  const errorText = page.locator('.scanner__viewport .error-text');
 
   try {
     await errorText.waitFor({ state: 'visible', timeout: 2_000 });
@@ -107,7 +107,7 @@ export async function getErrorMessage(page: Page): Promise<string | null> {
  * Checks if the scanner is in active (camera) mode
  */
 export async function isScannerActive(page: Page): Promise<boolean> {
-  const video = page.locator('.scanner__video video');
+  const video = page.locator('.scanner__viewport video');
   const isActive = await video.evaluate((el) => el.classList.contains('active'));
   return isActive;
 }
