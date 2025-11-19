@@ -98,33 +98,13 @@ async function handleDecode(request: DecodeRequest) {
       const text = result.getText();
       const formatEnum = result.getBarcodeFormat();
       const format = typeof formatEnum === "number" ? BarcodeFormat[formatEnum] ?? null : null;
-      
       const raw = result.getRawBytes?.();
-      let rawBytes: number[] | undefined = undefined;
-      
-      // Safely convert raw bytes to array, preventing iteration errors
-      if (raw) {
-        try {
-          // Check if the value is iterable before attempting Array.from
-          if (
-            typeof raw === 'object' &&
-            raw !== null &&
-            typeof (raw as any)[Symbol.iterator] === 'function'
-          ) {
-            rawBytes = Array.from(raw as Iterable<number>);
-          }
-        } catch (e) {
-          // If Array.from fails, leave rawBytes as undefined
-          // This prevents runtime errors from propagating to the UI
-        }
-      }
-      
       const payload: DecodeSuccess = {
         type: "result",
         requestId,
         text,
         format,
-        rawBytes
+        rawBytes: raw ? Array.from(raw) : undefined
       };
       ctx.postMessage(payload satisfies WorkerResponse);
       return;
@@ -151,3 +131,4 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
   }
   void handleDecode(payload);
 };
+
