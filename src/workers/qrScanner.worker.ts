@@ -106,8 +106,12 @@ async function handleDecode(request: DecodeRequest) {
       if (raw) {
         try {
           // Check if the value is iterable before attempting Array.from
-          if (typeof raw === 'object' && raw !== null && (Array.isArray(raw) || Symbol.iterator in raw)) {
-            rawBytes = Array.from(raw);
+          if (
+            typeof raw === 'object' &&
+            raw !== null &&
+            typeof (raw as any)[Symbol.iterator] === 'function'
+          ) {
+            rawBytes = Array.from(raw as Iterable<number>);
           }
         } catch (e) {
           // If Array.from fails, leave rawBytes as undefined
