@@ -108,7 +108,7 @@ export async function getErrorMessage(page: Page): Promise<string | null> {
  */
 export async function isScannerActive(page: Page): Promise<boolean> {
   const video = page.locator('.scanner__viewport video');
-  const isActive = await video.evaluate((el) => el.classList.contains('active'));
+  const isActive = await video.evaluate((el) => !el.classList.contains('paused'));
   return isActive;
 }
 
