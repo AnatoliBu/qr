@@ -397,8 +397,11 @@
 .preview__canvas canvas,
 .preview__canvas svg {
   width: 100% !important;
-  height: auto !important;
-  max-width: 150px;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain;
+  display: block;
 }
 
 .preview__actions {
@@ -628,22 +631,114 @@
   gap: var(--spacing-md);
 }
 
-.scanner__video {
+.scanner__viewport {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
   align-items: center;
 }
 
-/* TMA Premium Design System - Video Element */
-
-.scanner__video video {
+.scanner__frame {
+  position: relative;
   width: 100%;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
   background: #000;
-  min-height: 240px;
   box-shadow: var(--shadow-sm);
+}
+
+.scanner__frame video {
+  width: 100%;
+  min-height: 260px;
+  display: block;
+  object-fit: cover;
+  transition: filter 0.2s ease;
+}
+
+.scanner__frame video.paused {
+  filter: brightness(0.75);
+}
+
+.scanner__frame--flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+  animation: scanner-flash 220ms ease-out forwards;
+}
+
+@keyframes scanner-flash {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.scanner__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scanner__mask {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.55) 70%);
+}
+
+.scanner__target {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(70%, 320px);
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-lg);
+  border: 2px solid rgba(99, 179, 237, 0.7);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.scanner__target span {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border: 3px solid #64b5f6;
+}
+
+.scanner__target span:nth-child(1) {
+  top: -3px;
+  left: -3px;
+  border-bottom: none;
+  border-right: none;
+}
+
+.scanner__target span:nth-child(2) {
+  top: -3px;
+  right: -3px;
+  border-bottom: none;
+  border-left: none;
+}
+
+.scanner__target span:nth-child(3) {
+  bottom: -3px;
+  left: -3px;
+  border-top: none;
+  border-right: none;
+}
+
+.scanner__target span:nth-child(4) {
+  bottom: -3px;
+  right: -3px;
+  border-top: none;
+  border-left: none;
+}
+
+.scanner__canvas {
+  display: none;
 }
 
 .scanner__controls {
@@ -651,6 +746,18 @@
   gap: var(--spacing-sm);
   flex-wrap: wrap;
   justify-content: center;
+}
+
+.scanner__status {
+  font-size: var(--font-caption);
+  color: var(--hint, rgba(11, 18, 32, 0.6));
+  text-align: center;
+}
+
+.secondary.active {
+  background: rgba(51, 144, 236, 0.15);
+  border-color: rgba(51, 144, 236, 0.45);
+  color: var(--accent);
 }
 
 /* TMA Premium Design System - Upload Button */

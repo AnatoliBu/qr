@@ -6,14 +6,21 @@ import { QRType, getTypeDefinition } from "@/lib/qrTypes";
 import { bytesToBinaryString } from "@/lib/binary";
 import { useDraft } from "@/hooks/useDraft";
 import { QR_SYSTEM, calculateMarginPx } from "@/lib/qrConstants";
+import { triggerTelegramHaptic } from "@/hooks/useTelegramHaptic";
 import styles from "./Generator.module.css";
-
-// Haptic feedback helper
-function triggerHaptic(style: 'light' | 'medium' | 'heavy' = 'medium') {
-  if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-    window.Telegram.WebApp.HapticFeedback.impactOccurred(style);
-  }
-}
+import {
+  SVG_NS,
+  applyCustomDotShape,
+  applyDotSpacing,
+  clampSpacing,
+  CUSTOM_DOT_SHAPES,
+  collectInnerEyeClipRectBounds,
+  expandInnerEyeClipRects,
+  isInnerEyeClipRect,
+  isCustomDotShapeSupported,
+  strengthenInnerEyeClipPaths,
+  strengthenFinderPatterns,
+} from "@/lib/qrCustomShapes.mjs";
 
 function hexToRgb(hex: string) {
   const sanitized = hex.replace('#', '');
@@ -68,47 +75,6 @@ type ShapeType = "square" | "circle";
 type GradientType = "linear" | "radial";
 type GradientKey = "dotsGradient" | "backgroundGradient" | "cornersGradient";
 
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-function clampSpacing(value: number) {
-  if (!Number.isFinite(value)) return 0;
-  if (value < 0) return 0;
-  if (value > 0.6) return 0.6;
-  return value;
-}
-
-function applyDotSpacing(svg: SVGElement, spacing: number) {
-  const safeSpacing = clampSpacing(spacing);
-
-  // Always apply spacing transformation, even when spacing = 0
-  // This ensures we override any default spacing from the library
-  const scale = 1 - safeSpacing;
-  const rects = svg.querySelectorAll("rect");
-
-  rects.forEach((rect) => {
-    const width = Number(rect.getAttribute("width"));
-    const height = Number(rect.getAttribute("height"));
-    if (!width || !height) return;
-    if (width > 40 || height > 40) return;
-
-    const x = Number(rect.getAttribute("x"));
-    const y = Number(rect.getAttribute("y"));
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-
-    const centerX = x + width / 2;
-    const centerY = y + height / 2;
-    const newWidth = width * scale;
-    const newHeight = height * scale;
-    const newX = centerX - newWidth / 2;
-    const newY = centerY - newHeight / 2;
-
-    rect.setAttribute("x", newX.toFixed(3));
-    rect.setAttribute("y", newY.toFixed(3));
-    rect.setAttribute("width", newWidth.toFixed(3));
-    rect.setAttribute("height", newHeight.toFixed(3));
-  });
-}
-
 function ensureCircleLogo(svg: SVGElement, options: any) {
   const image = svg.querySelector("image");
   if (!image) {
@@ -156,8 +122,117 @@ function ensureCircleLogo(svg: SVGElement, options: any) {
 
 function spacingExtension(svg: SVGElement, options: any) {
   const spacing = clampSpacing(Number(options.moduleSpacing ?? 0));
-  // Always apply spacing, even when it's 0, to override library defaults
-  applyDotSpacing(svg, spacing);
+  const customShape = options.customDotShape;
+  const customEyeShape = options.customEyeShape;
+  const dotType = options.dotStyle ?? options.dotsOptions?.type;
+  const eyeOuterType = options.eyeOuterType ?? options.cornersSquareOptions?.type;
+  const eyeInnerType = options.eyeInnerType ?? options.cornersDotOptions?.type;
+
+  const rects = Array.from(svg.querySelectorAll("rect")) as SVGElement[];
+  let moduleSize = Infinity;
+
+  rects.forEach((rect) => {
+    const width = Number(rect.getAttribute("width"));
+    const height = Number(rect.getAttribute("height"));
+    if (!width || !height) return;
+    if (width > 40 || height > 40) return;
+    moduleSize = Math.min(moduleSize, width, height);
+  });
+
+  if (!Number.isFinite(moduleSize) || moduleSize <= 0) {
+    if (isCustomDotShapeSupported(customShape)) {
+      applyCustomDotShape(svg, customShape, spacing);
+    } else {
+      applyDotSpacing(svg, spacing);
+    }
+
+    if (isCustomDotShapeSupported(customEyeShape)) {
+      applyCustomDotShape(svg, customEyeShape, 0);
+    }
+
+    ensureCircleLogo(svg, options);
+    return;
+  }
+
+  const moduleThreshold = moduleSize * 1.5;
+  const innerEyeThreshold = moduleSize * 4.5;
+
+  const protectSquareInnerEyes = dotType === "dots" && eyeInnerType === "square";
+
+  const innerEyeClipBounds = collectInnerEyeClipRectBounds(svg);
+
+  const finderBounds = dotType === "dots"
+    ? innerEyeClipBounds.flatMap(({ x, y, width, height }) => {
+        const padding = moduleSize * 2;
+        const minX = x - padding;
+        const minY = y - padding;
+        const maxX = x + width + padding;
+        const maxY = y + height + padding;
+
+        if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+          return [];
+        }
+
+        return [{ minX, minY, maxX, maxY }];
+      })
+    : [];
+
+  const isModuleRect = (rect: SVGElement, width: number, height: number) => {
+    if (width > moduleThreshold || height > moduleThreshold) {
+      return false;
+    }
+
+    if (protectSquareInnerEyes && isInnerEyeClipRect(rect)) {
+      return false;
+    }
+
+    if (finderBounds.length > 0) {
+      const x = Number(rect.getAttribute("x"));
+      const y = Number(rect.getAttribute("y"));
+
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+
+        if (
+          finderBounds.some(
+            ({ minX, minY, maxX, maxY }) =>
+              centerX >= minX &&
+              centerX <= maxX &&
+              centerY >= minY &&
+              centerY <= maxY
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  const isInnerEyeRect = (_rect: SVGElement, width: number, height: number) =>
+    width > moduleThreshold && width <= innerEyeThreshold && height > moduleThreshold && height <= innerEyeThreshold;
+
+  if (isCustomDotShapeSupported(customShape)) {
+    applyCustomDotShape(svg, customShape, spacing, isModuleRect);
+  } else {
+    applyDotSpacing(svg, spacing, isModuleRect);
+  }
+
+  if (isCustomDotShapeSupported(customEyeShape)) {
+    applyCustomDotShape(svg, customEyeShape, 0, isInnerEyeRect);
+  }
+
+  if (eyeInnerType === "dot") {
+    strengthenInnerEyeClipPaths(svg);
+  } else if (dotType === "dots" && eyeInnerType === "square" && eyeOuterType === "extra-rounded") {
+    expandInnerEyeClipRects(svg);
+  }
+
+  // Always strengthen finder patterns for better scannability
+  strengthenFinderPatterns(svg);
+
   ensureCircleLogo(svg, options);
 }
 
@@ -187,6 +262,8 @@ interface StyleOptions {
   logoSize: number;
   shape: ShapeType;
   dotSpacing: number;
+  customDotShape?: string;
+  customEyeShape?: string;
   useDotsGradient: boolean;
   dotsGradient?: Gradient;
   useBackgroundGradient: boolean;
@@ -214,6 +291,8 @@ const defaultStyle: StyleOptions = {
   logoSize: 18,
   shape: "square",
   dotSpacing: 0,
+  customDotShape: undefined,
+  customEyeShape: undefined,
   useDotsGradient: false,
   dotsGradient: {
     type: "linear",
@@ -272,15 +351,9 @@ const QR_TEMPLATES = [
   { type: "ics", emoji: "📅", name: "Событие", desc: "Календарь" }
 ];
 
-// Style presets
-const STYLE_PRESETS = [
-  { id: "square", emoji: "⬛", label: "Квадраты", dotStyle: "square" as DotStyle },
-  { id: "dots", emoji: "⚫", label: "Точки", dotStyle: "dots" as DotStyle },
-  { id: "rounded", emoji: "🔘", label: "Скругленные", dotStyle: "rounded" as DotStyle },
-  { id: "elegant", emoji: "💎", label: "Элегантный", dotStyle: "extra-rounded" as DotStyle }
-];
+const CUSTOM_OPTION_PREFIX = "custom:" as const;
 
-const DOT_STYLE_OPTIONS: { value: DotStyle; label: string }[] = [
+const DOT_STYLE_BASE_OPTIONS: { value: DotStyle; label: string }[] = [
   { value: "square", label: "Квадраты" },
   { value: "rounded", label: "Скругленные" },
   { value: "extra-rounded", label: "Очень скругленные" },
@@ -289,15 +362,31 @@ const DOT_STYLE_OPTIONS: { value: DotStyle; label: string }[] = [
   { value: "classy-rounded", label: "Classy Rounded" }
 ];
 
+const DOT_STYLE_OPTIONS = [
+  ...DOT_STYLE_BASE_OPTIONS,
+  ...CUSTOM_DOT_SHAPES.map((shape) => ({
+    value: `${CUSTOM_OPTION_PREFIX}${shape.id}`,
+    label: `${shape.emoji} ${shape.name}`
+  }))
+];
+
 const EYE_OUTER_OPTIONS: { value: EyeStyle; label: string }[] = [
   { value: "square", label: "Квадрат" },
   { value: "extra-rounded", label: "Скруглённый" },
   { value: "dot", label: "Точка" }
 ];
 
-const EYE_INNER_OPTIONS: { value: EyeDotStyle; label: string }[] = [
+const EYE_INNER_BASE_OPTIONS: { value: EyeDotStyle; label: string }[] = [
   { value: "square", label: "Квадрат" },
   { value: "dot", label: "Точка" }
+];
+
+const EYE_INNER_OPTIONS = [
+  ...EYE_INNER_BASE_OPTIONS,
+  ...CUSTOM_DOT_SHAPES.map((shape) => ({
+    value: `${CUSTOM_OPTION_PREFIX}${shape.id}`,
+    label: `${shape.emoji} ${shape.name}`
+  }))
 ];
 
 const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
@@ -316,7 +405,6 @@ export function GeneratorNew() {
       style: defaultStyle
     }
   );
-
   // Миграция старых черновиков: size → exportSize, margin → marginPercent
   const draft = useMemo(() => {
     const style = { ...rawDraft.style };
@@ -468,7 +556,7 @@ export function GeneratorNew() {
   };
 
   const handleGradientTypeChange = (key: GradientKey, type: GradientType) => {
-    triggerHaptic('light');
+    triggerTelegramHaptic('light');
     updateGradient(key, (current) => ({ ...current, type }));
   };
 
@@ -503,7 +591,7 @@ export function GeneratorNew() {
 
   const switchType = useCallback(
     (type: QRType) => {
-      triggerHaptic('light');
+      triggerTelegramHaptic('light');
       setErrors({});
       setDraft((prev) => ({
         ...prev,
@@ -550,17 +638,17 @@ export function GeneratorNew() {
   const handleFileUpload = useCallback(
     (file: File | null) => {
       if (!file) {
-        triggerHaptic('light');
+        triggerTelegramHaptic('light');
         updateStyle({ logoDataUrl: undefined });
         return;
       }
       if (!file.type.startsWith("image/")) {
-        triggerHaptic('light');
+        triggerTelegramHaptic('light');
         return;
       }
       const reader = new FileReader();
       reader.onload = () => {
-        triggerHaptic('medium');
+        triggerTelegramHaptic('medium');
         updateStyle({ logoDataUrl: reader.result as string });
       };
       reader.readAsDataURL(file);
@@ -606,10 +694,31 @@ export function GeneratorNew() {
       });
       qrRef.current = instance;
       instance.append(containerRef.current);
-      instance.applyExtension(spacingExtension);
+      instance.applyExtension((svg: SVGElement, opts: any) =>
+        spacingExtension(svg, {
+          ...opts,
+          customDotShape: draft.style.customDotShape,
+          customEyeShape: draft.style.customEyeShape,
+          eyeInnerType: draft.style.eyeInner,
+          eyeOuterType: draft.style.eyeOuter,
+          dotStyle: draft.style.dotStyle
+        })
+      );
       schedulePreviewFit();
     }
-  }, [QRCodeStylingCtor, draft.style.errorCorrection, draft.style.hideBackgroundDots, draft.style.logoSize, draft.style.marginPercent, schedulePreviewFit]);
+  }, [
+    QRCodeStylingCtor,
+    draft.style.customDotShape,
+    draft.style.customEyeShape,
+    draft.style.dotStyle,
+    draft.style.errorCorrection,
+    draft.style.eyeInner,
+    draft.style.eyeOuter,
+    draft.style.hideBackgroundDots,
+    draft.style.logoSize,
+    draft.style.marginPercent,
+    schedulePreviewFit
+  ]);
 
   const formValues = useMemo(() => {
     const scoped: Record<string, string> = {};
@@ -675,11 +784,11 @@ export function GeneratorNew() {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      triggerHaptic('light');
+      triggerTelegramHaptic('light');
       return false;
     }
 
-    triggerHaptic('medium');
+    triggerTelegramHaptic('medium');
     setQrPayload(payload);
 
     // Preview всегда использует фиксированный размер
@@ -695,6 +804,8 @@ export function GeneratorNew() {
       shape: draft.style.shape,
       margin: previewMargin,
       moduleSpacing: (draft.style.dotSpacing ?? 0) / 100,
+      customDotShape: draft.style.customDotShape,
+      customEyeShape: draft.style.customEyeShape,
       qrOptions: {
         errorCorrectionLevel: draft.style.errorCorrection,
         mode: "Byte"
@@ -731,7 +842,16 @@ export function GeneratorNew() {
     };
 
     const finalizePreview = () => {
-      qrRef.current?.applyExtension(spacingExtension);
+      qrRef.current?.applyExtension((svg: SVGElement, opts: any) =>
+        spacingExtension(svg, {
+          ...opts,
+          customDotShape: draft.style.customDotShape,
+          customEyeShape: draft.style.customEyeShape,
+          eyeInnerType: draft.style.eyeInner,
+          eyeOuterType: draft.style.eyeOuter,
+          dotStyle: draft.style.dotStyle
+        })
+      );
       schedulePreviewFit();
     };
 
@@ -767,7 +887,7 @@ export function GeneratorNew() {
       if (!ok) return;
 
       setIsLoading(true);
-      triggerHaptic('heavy');
+      triggerTelegramHaptic('heavy');
 
       try {
         const payload = qrPayload || activeDefinition.buildPayload(formValues);
@@ -788,6 +908,8 @@ export function GeneratorNew() {
           shape: draft.style.shape,
           margin: exportMargin,
           moduleSpacing: (draft.style.dotSpacing ?? 0) / 100,
+          customDotShape: draft.style.customDotShape,
+          customEyeShape: draft.style.customEyeShape,
           qrOptions: {
             errorCorrectionLevel: draft.style.errorCorrection,
             mode: "Byte"
@@ -825,7 +947,16 @@ export function GeneratorNew() {
 
         // Создаем временный экземпляр для экспорта
         const exportQR = new QRCodeStylingCtor(exportOptions);
-        exportQR.applyExtension(spacingExtension);
+        exportQR.applyExtension((svg: SVGElement, opts: any) =>
+          spacingExtension(svg, {
+            ...opts,
+            customDotShape: draft.style.customDotShape,
+            customEyeShape: draft.style.customEyeShape,
+            eyeInnerType: draft.style.eyeInner,
+            eyeOuterType: draft.style.eyeOuter,
+            dotStyle: draft.style.dotStyle
+          })
+        );
 
         const blob = await exportQR.getRawData(format);
         if (!blob) {
@@ -900,7 +1031,7 @@ export function GeneratorNew() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "content" })}
           onClick={() => {
             setActiveTab("content");
-            triggerHaptic('light');
+            triggerTelegramHaptic('light');
           }}
         >
           📝 Контент
@@ -909,7 +1040,7 @@ export function GeneratorNew() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "style" })}
           onClick={() => {
             setActiveTab("style");
-            triggerHaptic('light');
+            triggerTelegramHaptic('light');
           }}
         >
           🎨 Стиль
@@ -918,7 +1049,7 @@ export function GeneratorNew() {
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "advanced" })}
           onClick={() => {
             setActiveTab("advanced");
-            triggerHaptic('light');
+            triggerTelegramHaptic('light');
           }}
         >
           ⚙️ Продвинутые
@@ -1007,31 +1138,6 @@ export function GeneratorNew() {
       <div className={classNames(styles.tabContent, { [styles.tabContentActive]: activeTab === "style" })}>
         <div className={styles.inputGroup}>
           <label className={styles.inputLabel}>
-            <span>🎭 Стиль QR-кода</span>
-          </label>
-          <div className={styles.styleGrid}>
-            {STYLE_PRESETS.map((preset) => (
-              <div
-                key={preset.id}
-                className={classNames(styles.styleOption, {
-                  [styles.styleOptionActive]: draft.style.dotStyle === preset.dotStyle
-                })}
-                onClick={() => {
-                  updateStyle({ dotStyle: preset.dotStyle });
-                  triggerHaptic('light');
-                }}
-              >
-                <div className={styles.stylePreview}>{preset.emoji}</div>
-                <div className={styles.styleLabel}>{preset.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.divider}></div>
-
-        <div className={styles.inputGroup}>
-          <label className={styles.inputLabel}>
             <span>🎨 Цветовая схема</span>
           </label>
           <div className={styles.colorPickerGroup}>
@@ -1096,7 +1202,7 @@ export function GeneratorNew() {
                 value={draft.style.shape}
                 onChange={(event) => {
                   updateStyle({ shape: event.target.value as ShapeType });
-                  triggerHaptic('light');
+                  triggerTelegramHaptic('light');
                 }}
               >
                 {SHAPE_OPTIONS.map((option) => (
@@ -1110,10 +1216,20 @@ export function GeneratorNew() {
               <span className={styles.fieldTitle}>Стиль точек</span>
               <select
                 className={styles.select}
-                value={draft.style.dotStyle}
+                value={
+                  draft.style.customDotShape
+                    ? `${CUSTOM_OPTION_PREFIX}${draft.style.customDotShape}`
+                    : draft.style.dotStyle
+                }
                 onChange={(event) => {
-                  updateStyle({ dotStyle: event.target.value as DotStyle });
-                  triggerHaptic('light');
+                  const { value } = event.target;
+                  if (value.startsWith(CUSTOM_OPTION_PREFIX)) {
+                    const shapeId = value.slice(CUSTOM_OPTION_PREFIX.length);
+                    updateStyle({ dotStyle: "square", customDotShape: shapeId });
+                  } else {
+                    updateStyle({ dotStyle: value as DotStyle, customDotShape: undefined });
+                  }
+                  triggerTelegramHaptic('light');
                 }}
               >
                 {DOT_STYLE_OPTIONS.map((option) => (
@@ -1130,7 +1246,7 @@ export function GeneratorNew() {
                 value={draft.style.eyeOuter}
                 onChange={(event) => {
                   updateStyle({ eyeOuter: event.target.value as EyeStyle });
-                  triggerHaptic('light');
+                  triggerTelegramHaptic('light');
                 }}
               >
                 {EYE_OUTER_OPTIONS.map((option) => (
@@ -1144,10 +1260,20 @@ export function GeneratorNew() {
               <span className={styles.fieldTitle}>Внутренние глазки</span>
               <select
                 className={styles.select}
-                value={draft.style.eyeInner}
+                value={
+                  draft.style.customEyeShape
+                    ? `${CUSTOM_OPTION_PREFIX}${draft.style.customEyeShape}`
+                    : draft.style.eyeInner
+                }
                 onChange={(event) => {
-                  updateStyle({ eyeInner: event.target.value as EyeDotStyle });
-                  triggerHaptic('light');
+                  const { value } = event.target;
+                  if (value.startsWith(CUSTOM_OPTION_PREFIX)) {
+                    const shapeId = value.slice(CUSTOM_OPTION_PREFIX.length);
+                    updateStyle({ eyeInner: "square", customEyeShape: shapeId });
+                  } else {
+                    updateStyle({ eyeInner: value as EyeDotStyle, customEyeShape: undefined });
+                  }
+                  triggerTelegramHaptic('light');
                 }}
               >
                 {EYE_INNER_OPTIONS.map((option) => (
@@ -1173,7 +1299,7 @@ export function GeneratorNew() {
               value={draft.style.dotSpacing ?? 0}
               onChange={(event) => {
                 updateStyle({ dotSpacing: Number(event.target.value) });
-                triggerHaptic('light');
+                triggerTelegramHaptic('light');
               }}
             />
             <div className={styles.rangeHint}>0% — плотная сетка, 60% — заметные промежутки.</div>
@@ -1197,7 +1323,7 @@ export function GeneratorNew() {
                     checked={draft.style.useDotsGradient}
                     onChange={(event) => {
                       updateStyle({ useDotsGradient: event.target.checked });
-                      triggerHaptic('light');
+                      triggerTelegramHaptic('light');
                     }}
                   />
                   <span>Использовать градиент</span>
@@ -1296,7 +1422,7 @@ export function GeneratorNew() {
                     checked={draft.style.useBackgroundGradient}
                     onChange={(event) => {
                       updateStyle({ useBackgroundGradient: event.target.checked });
-                      triggerHaptic('light');
+                      triggerTelegramHaptic('light');
                     }}
                   />
                   <span>Использовать градиент</span>
@@ -1395,7 +1521,7 @@ export function GeneratorNew() {
                     checked={draft.style.useCornersGradient}
                     onChange={(event) => {
                       updateStyle({ useCornersGradient: event.target.checked });
-                      triggerHaptic('light');
+                      triggerTelegramHaptic('light');
                     }}
                   />
                   <span>Использовать градиент</span>
@@ -1574,7 +1700,7 @@ export function GeneratorNew() {
               className={styles.templateCard}
               onClick={() => {
                 updateStyle({ foreground: preset.fg, background: preset.bg });
-                triggerHaptic('medium');
+                triggerTelegramHaptic('medium');
               }}
             >
               <div className={styles.templateName}>{preset.emoji} {preset.name}</div>
@@ -1704,7 +1830,7 @@ export function GeneratorNew() {
           className={classNames(styles.btn, styles.btnSecondary)}
           onClick={() => {
             regenerate();
-            triggerHaptic('medium');
+            triggerTelegramHaptic('medium');
           }}
         >
           👁️ Превью

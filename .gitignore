@@ -22,3 +22,5 @@ public/workers/*.js.map
 /playwright/.cache/
 /screenshots/
 !/screenshots/README.md
+reports/
+docs/living/
