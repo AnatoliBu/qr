@@ -70,6 +70,8 @@ export function Scanner() {
   const [flash, setFlash] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterSource, setFilterSource] = useState<"all" | "camera" | "file">("all");
 
   const isMobile = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -94,6 +96,48 @@ export function Scanner() {
     }
     return "Камера выключена";
   }, [active, paused, hasCamera, isLoadingCamera]);
+
+  const filteredResults = useMemo(() => {
+    let filtered = results;
+
+    // Filter by source
+    if (filterSource !== "all") {
+      filtered = filtered.filter(r => r.source === filterSource);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(r => r.text.toLowerCase().includes(query));
+    }
+
+    return filtered;
+  }, [results, filterSource, searchQuery]);
+
+  const handleDeleteResult = useCallback((timestamp: number) => {
+    setResults(prev => prev.filter(r => r.timestamp !== timestamp));
+  }, []);
+
+  const handleClearAll = useCallback(() => {
+    setResults([]);
+  }, []);
+
+  const handleExportResults = useCallback(() => {
+    const data = JSON.stringify(results, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `qr-scan-history-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [results]);
+
+  const handleCopyToClipboard = useCallback((text: string) => {
+    navigator.clipboard?.writeText(text);
+  }, []);
 
   const clearTimeouts = useCallback(() => {
     if (pauseTimeoutRef.current) {
@@ -520,7 +564,7 @@ export function Scanner() {
       </header>
 
       <div className="scanner">
-        <div className="scanner__viewport">
+        <div className="scanner__viewport scanner__video">
           <div className={`scanner__frame${flash ? " scanner__frame--flash" : ""}`}>
             <video
               ref={videoRef}
@@ -580,16 +624,119 @@ export function Scanner() {
         </div>
 
         <div className="scanner__results">
-          <h3>Последние результаты</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <h3>История сканирований ({results.length})</h3>
+            {results.length > 0 && (
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={handleExportResults}
+                  style={{
+                    padding: "6px 12px",
+                    background: "rgba(102, 126, 234, 0.1)",
+                    border: "1px solid rgba(102, 126, 234, 0.3)",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    fontSize: "12px"
+                  }}
+                >
+                  📥 Экспорт
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  style={{
+                    padding: "6px 12px",
+                    background: "rgba(239, 68, 68, 0.1)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    fontSize: "12px"
+                  }}
+                >
+                  🗑️ Очистить
+                </button>
+              </div>
+            )}
+          </div>
+
+          {results.length > 0 && (
+            <>
+              <div style={{ marginBottom: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  placeholder="Поиск в истории..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    flex: "1",
+                    padding: "8px 12px",
+                    border: "2px solid rgba(255,255,255,0.06)",
+                    borderRadius: "8px",
+                    background: "var(--surface)",
+                    color: "var(--text)",
+                    fontSize: "14px",
+                    minWidth: "200px"
+                  }}
+                />
+                <select
+                  value={filterSource}
+                  onChange={(e) => setFilterSource(e.target.value as any)}
+                  style={{
+                    padding: "8px 12px",
+                    border: "2px solid rgba(255,255,255,0.06)",
+                    borderRadius: "8px",
+                    background: "var(--surface)",
+                    color: "var(--text)",
+                    fontSize: "14px",
+                    cursor: "pointer"
+                  }}
+                >
+                  <option value="all">Все источники</option>
+                  <option value="camera">📷 Камера</option>
+                  <option value="file">🖼️ Файл</option>
+                </select>
+              </div>
+            </>
+          )}
+
           {results.length === 0 ? (
             <p className="hint">Пока нет данных</p>
+          ) : filteredResults.length === 0 ? (
+            <p className="hint">Нет результатов по фильтру</p>
           ) : (
             <ul>
-              {results.map((item) => (
+              {filteredResults.map((item) => (
                 <li key={`${item.timestamp}-${item.text}`}>
                   <span className="pill pill__small">{item.source === "camera" ? "📷" : "🖼️"}</span>
-                  <code>{item.text}</code>
-                  <small>{new Date(item.timestamp).toLocaleTimeString()}</small>
+                  <code style={{ flex: 1, wordBreak: "break-all" }}>{item.text}</code>
+                  <small style={{ whiteSpace: "nowrap" }}>{new Date(item.timestamp).toLocaleString()}</small>
+                  <button
+                    onClick={() => handleCopyToClipboard(item.text)}
+                    style={{
+                      padding: "4px 8px",
+                      background: "rgba(102, 126, 234, 0.1)",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "12px"
+                    }}
+                    title="Копировать"
+                  >
+                    📋
+                  </button>
+                  <button
+                    onClick={() => handleDeleteResult(item.timestamp)}
+                    style={{
+                      padding: "4px 8px",
+                      background: "rgba(239, 68, 68, 0.1)",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "12px"
+                    }}
+                    title="Удалить"
+                  >
+                    🗑️
+                  </button>
                 </li>
               ))}
             </ul>

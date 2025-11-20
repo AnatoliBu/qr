@@ -7,7 +7,11 @@ import { bytesToBinaryString } from "@/lib/binary";
 import { useDraft } from "@/hooks/useDraft";
 import { QR_SYSTEM, calculateMarginPx } from "@/lib/qrConstants";
 import { triggerTelegramHaptic } from "@/hooks/useTelegramHaptic";
+import { getTemplates, saveTemplate, deleteTemplate, PREDEFINED_TEMPLATES } from "@/lib/designTemplates";
+import type { DesignTemplate } from "@/lib/designTemplates";
 import styles from "./Generator.module.css";
+import animationStyles from "./QRAnimations.module.css";
+import frameStyles from "./QRFrames.module.css";
 import {
   SVG_NS,
   applyCustomDotShape,
@@ -74,6 +78,8 @@ type EyeDotStyle = "square" | "dot";
 type ShapeType = "square" | "circle";
 type GradientType = "linear" | "radial";
 type GradientKey = "dotsGradient" | "backgroundGradient" | "cornersGradient";
+type AnimationType = "none" | "pulse" | "rotate" | "float" | "bounce" | "swing" | "glow" | "shake" | "flip" | "wobble" | "zoom" | "fade" | "3dRotate" | "neon" | "heartbeat";
+type FrameType = "none" | "classic" | "modern" | "minimal" | "bold" | "neon" | "dashed" | "shadow" | "sticker" | "premium" | "fun";
 
 function ensureCircleLogo(svg: SVGElement, options: any) {
   const image = svg.querySelector("image");
@@ -271,6 +277,8 @@ interface StyleOptions {
   useCornersGradient: boolean;
   cornersGradient?: Gradient;
   hideBackgroundDots: boolean;
+  animation: AnimationType;
+  frame: FrameType;
 }
 
 interface GeneratorDraft {
@@ -320,7 +328,9 @@ const defaultStyle: StyleOptions = {
       { offset: 1, color: "#4a5568" }
     ]
   },
-  hideBackgroundDots: true
+  hideBackgroundDots: true,
+  animation: "none",
+  frame: "none"
 };
 
 const MAX_PAYLOAD_BYTES = 2953;
@@ -394,6 +404,38 @@ const SHAPE_OPTIONS: { value: ShapeType; label: string }[] = [
   { value: "circle", label: "Круг" }
 ];
 
+const ANIMATION_OPTIONS: { value: AnimationType; label: string; emoji: string }[] = [
+  { value: "none", label: "Без анимации", emoji: "⏹️" },
+  { value: "pulse", label: "Пульсация", emoji: "💓" },
+  { value: "rotate", label: "Вращение", emoji: "🔄" },
+  { value: "float", label: "Плавание", emoji: "🎈" },
+  { value: "bounce", label: "Подпрыгивание", emoji: "⚽" },
+  { value: "swing", label: "Качание", emoji: "🎪" },
+  { value: "glow", label: "Свечение", emoji: "✨" },
+  { value: "shake", label: "Тряска", emoji: "📳" },
+  { value: "flip", label: "Переворот", emoji: "🔃" },
+  { value: "wobble", label: "Колебание", emoji: "〰️" },
+  { value: "zoom", label: "Зум", emoji: "🔍" },
+  { value: "fade", label: "Затухание", emoji: "🌫️" },
+  { value: "3dRotate", label: "3D Вращение", emoji: "🎲" },
+  { value: "neon", label: "Неон", emoji: "💡" },
+  { value: "heartbeat", label: "Сердцебиение", emoji: "❤️" }
+];
+
+const FRAME_OPTIONS: { value: FrameType; label: string; emoji: string }[] = [
+  { value: "none", label: "Без рамки", emoji: "⬜" },
+  { value: "classic", label: "Классическая", emoji: "🎯" },
+  { value: "modern", label: "Современная", emoji: "💎" },
+  { value: "minimal", label: "Минимал", emoji: "⚪" },
+  { value: "bold", label: "Жирная", emoji: "🔲" },
+  { value: "neon", label: "Неоновая", emoji: "🌟" },
+  { value: "dashed", label: "Пунктир", emoji: "➖" },
+  { value: "shadow", label: "С тенью", emoji: "☁️" },
+  { value: "sticker", label: "Стикер", emoji: "🏷️" },
+  { value: "premium", label: "Премиум", emoji: "👑" },
+  { value: "fun", label: "Весёлая", emoji: "🎉" }
+];
+
 // Константы перенесены в /src/lib/qrConstants.ts
 
 export function GeneratorNew() {
@@ -441,6 +483,13 @@ export function GeneratorNew() {
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const qrRef = useRef<any>(null);
+  const [savedTemplates, setSavedTemplates] = useState<DesignTemplate[]>([]);
+  const [templateName, setTemplateName] = useState("");
+
+  // Load saved templates on mount
+  useEffect(() => {
+    setSavedTemplates(getTemplates());
+  }, []);
 
   const ensurePreviewFits = useCallback(() => {
     const container = containerRef.current;
@@ -519,6 +568,28 @@ export function GeneratorNew() {
     },
     [setDraft]
   );
+
+  const handleSaveTemplate = useCallback(() => {
+    if (!templateName.trim()) {
+      triggerTelegramHaptic('light');
+      return;
+    }
+    const template = saveTemplate(templateName.trim(), draft.style);
+    setSavedTemplates(getTemplates());
+    setTemplateName("");
+    triggerTelegramHaptic('heavy');
+  }, [templateName, draft.style]);
+
+  const handleLoadTemplate = useCallback((template: DesignTemplate | typeof PREDEFINED_TEMPLATES[0]) => {
+    updateStyle(template.style);
+    triggerTelegramHaptic('medium');
+  }, [updateStyle]);
+
+  const handleDeleteTemplate = useCallback((id: string) => {
+    deleteTemplate(id);
+    setSavedTemplates(getTemplates());
+    triggerTelegramHaptic('light');
+  }, []);
 
   const handleMarginChange = useCallback(
     (percent: number) => {
@@ -1018,11 +1089,49 @@ export function GeneratorNew() {
     return relativeLuminance(rgb) > 0.5;
   };
 
+  const getAnimationClassName = useCallback(() => {
+    const animationMap: Record<AnimationType, string> = {
+      "none": animationStyles.animationNone,
+      "pulse": animationStyles.animationPulse,
+      "rotate": animationStyles.animationRotate,
+      "float": animationStyles.animationFloat,
+      "bounce": animationStyles.animationBounce,
+      "swing": animationStyles.animationSwing,
+      "glow": animationStyles.animationGlow,
+      "shake": animationStyles.animationShake,
+      "flip": animationStyles.animationFlip,
+      "wobble": animationStyles.animationWobble,
+      "zoom": animationStyles.animationZoom,
+      "fade": animationStyles.animationFade,
+      "3dRotate": animationStyles.animation3DRotate,
+      "neon": animationStyles.animationNeon,
+      "heartbeat": animationStyles.animationHeartbeat
+    };
+    return animationMap[draft.style.animation] || animationStyles.animationNone;
+  }, [draft.style.animation]);
+
+  const getFrameClassName = useCallback(() => {
+    const frameMap: Record<FrameType, string> = {
+      "none": frameStyles.frameNone,
+      "classic": frameStyles.frameClassic,
+      "modern": frameStyles.frameModern,
+      "minimal": frameStyles.frameMinimal,
+      "bold": frameStyles.frameBold,
+      "neon": frameStyles.frameNeon,
+      "dashed": frameStyles.frameDashed,
+      "shadow": frameStyles.frameShadow,
+      "sticker": frameStyles.frameSticker,
+      "premium": frameStyles.framePremium,
+      "fun": frameStyles.frameFun
+    };
+    return frameMap[draft.style.frame] || frameStyles.frameNone;
+  }, [draft.style.frame]);
+
   return (
     <section className={styles.generator}>
       <div className={classNames(styles.qrPreview, "preview")}>
-        <div className={classNames(styles.qrCode, "preview__canvas")}>
-          <div ref={containerRef} className={styles.qrCanvas} />
+        <div className={classNames(styles.qrCode, "preview__canvas", frameStyles.frameWrapper, getFrameClassName())}>
+          <div ref={containerRef} className={classNames(styles.qrCanvas, getAnimationClassName())} />
         </div>
       </div>
 
@@ -1693,6 +1802,34 @@ export function GeneratorNew() {
 
         <div className={styles.divider}></div>
 
+        <div className={styles.inputGroup}>
+          <label className={styles.inputLabel}>
+            <span>🖼️ Рамка QR-кода</span>
+            <span className={styles.badge}>С CTA текстом</span>
+          </label>
+          <div className={styles.templateGrid}>
+            {FRAME_OPTIONS.map((frame) => (
+              <div
+                key={frame.value}
+                className={classNames(styles.templateCard, {
+                  [styles.templateCardActive]: draft.style.frame === frame.value
+                })}
+                onClick={() => {
+                  updateStyle({ frame: frame.value });
+                  triggerTelegramHaptic('light');
+                }}
+              >
+                <div className={styles.templateName}>{frame.emoji} {frame.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className={styles.infoCard}>
+            💡 <strong>Совет:</strong> Рамки включают призыв к действию (CTA), который привлекает внимание к QR-коду.
+          </div>
+        </div>
+
+        <div className={styles.divider}></div>
+
         <div className={styles.templateGrid}>
           {COLOR_PRESETS.map((preset) => (
             <div
@@ -1804,6 +1941,34 @@ export function GeneratorNew() {
           </div>
           <div className={styles.rangeHint}>
             В процентах от размера QR. 8% = стандарт, 0% = без отступа.
+          </div>
+        </div>
+
+        <div className={styles.divider}></div>
+
+        <div className={styles.inputGroup}>
+          <label className={styles.inputLabel}>
+            <span>🎬 Анимация QR-кода</span>
+            <span className={styles.badge}>Новинка!</span>
+          </label>
+          <div className={styles.templateGrid}>
+            {ANIMATION_OPTIONS.map((anim) => (
+              <div
+                key={anim.value}
+                className={classNames(styles.templateCard, {
+                  [styles.templateCardActive]: draft.style.animation === anim.value
+                })}
+                onClick={() => {
+                  updateStyle({ animation: anim.value });
+                  triggerTelegramHaptic('light');
+                }}
+              >
+                <div className={styles.templateName}>{anim.emoji} {anim.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className={styles.infoCard}>
+            💡 <strong>Совет:</strong> Анимации работают только в превью. При экспорте сохраняется статичное изображение.
           </div>
         </div>
 

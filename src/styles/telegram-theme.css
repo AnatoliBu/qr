@@ -52,8 +52,31 @@
   --gradient-green: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
   --gradient-orange: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
 
+  /* Interactive States - 2025 Standards */
+  --interactive-bg: rgba(51, 144, 236, 0.08);
+  --interactive-bg-hover: rgba(51, 144, 236, 0.12);
+  --interactive-bg-active: rgba(51, 144, 236, 0.16);
+  --interactive-border: rgba(51, 144, 236, 0.2);
+  --interactive-border-hover: rgba(51, 144, 236, 0.4);
+
+  /* Focus Ring - Modern Accessibility */
+  --focus-ring: 0 0 0 3px rgba(51, 144, 236, 0.2);
+  --focus-ring-inset: inset 0 0 0 2px var(--accent);
+
+  /* Elevation System - Material Design 3 inspired */
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  --elevation-2: 0 3px 6px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+  --elevation-3: 0 8px 12px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
+  --elevation-4: 0 12px 24px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.08);
+
   /* Tap targets */
   --tap-target-min: 44px;
+
+  /* Transitions - Bezier Curves for Polish */
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
 /* Dark mode - TMA Premium Design System (WCAG 2.1 AA compliant) */
@@ -68,6 +91,22 @@
     --button: #64b5f6;
     --destructive: #ff6b6b;
     --surface-border: rgba(255, 255, 255, 0.12);
+
+    /* Interactive States - Dark Mode */
+    --interactive-bg: rgba(100, 181, 246, 0.12);
+    --interactive-bg-hover: rgba(100, 181, 246, 0.18);
+    --interactive-bg-active: rgba(100, 181, 246, 0.24);
+    --interactive-border: rgba(100, 181, 246, 0.24);
+    --interactive-border-hover: rgba(100, 181, 246, 0.4);
+
+    /* Focus Ring - Dark Mode */
+    --focus-ring: 0 0 0 3px rgba(100, 181, 246, 0.3);
+
+    /* Elevation System - Dark Mode */
+    --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.6);
+    --elevation-2: 0 3px 6px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.6);
+    --elevation-3: 0 8px 12px rgba(0, 0, 0, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
+    --elevation-4: 0 12px 24px rgba(0, 0, 0, 0.9), 0 8px 16px rgba(0, 0, 0, 0.7);
 
     /* Shadows - adjusted for dark mode */
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.6);
