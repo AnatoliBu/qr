@@ -564,7 +564,7 @@ export function Scanner() {
       </header>
 
       <div className="scanner">
-        <div className="scanner__viewport">
+        <div className="scanner__viewport scanner__video">
           <div className={`scanner__frame${flash ? " scanner__frame--flash" : ""}`}>
             <video
               ref={videoRef}
