@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 
 const run = (command, args, options = {}) =>
   new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'inherit', shell: false, ...options });
+    const child = spawn(command, args, { stdio: 'inherit', shell: true, ...options });
 
     child.on('error', reject);
     child.on('exit', (code) => {
@@ -14,7 +14,12 @@ const run = (command, args, options = {}) =>
     });
   });
 
-await run('npm', ['run', 'build'], {
+// spawn uses shell:true so Windows resolves the npm/npx .cmd shims. (Node >=20
+// throws EINVAL when spawning a .cmd with shell:false, and a bare "npm" is ENOENT.)
+const npmCommand = 'npm';
+const npxCommand = 'npx';
+
+await run(npmCommand, ['run', 'build'], {
   env: {
     ...process.env,
     BASE_PATH: '/',
@@ -31,5 +36,4 @@ if (process.platform === 'linux' && (process.env.CI || process.env.PLAYWRIGHT_IN
   installArgs.push('--with-deps');
 }
 
-const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 await run(npxCommand, ['playwright', ...installArgs]);
