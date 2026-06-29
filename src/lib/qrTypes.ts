@@ -32,9 +32,9 @@ export interface QRTypeDefinition {
   buildPayload: (values: Record<string, string>) => string;
 }
 
-export const QR_TYPES = runtimeTypes as QRTypeDefinition[];
+export const QR_TYPES: QRTypeDefinition[] = runtimeTypes;
 
 export function getTypeDefinition(type: QRType): QRTypeDefinition {
-  return runtimeGetDefinition(type) as QRTypeDefinition;
+  return runtimeGetDefinition(type);
 }
 

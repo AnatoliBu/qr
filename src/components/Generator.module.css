@@ -91,6 +91,8 @@
   max-height: 100%;
   display: grid;
   place-items: center;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
 }
 .qrCanvas :global(canvas),
 .qrCanvas :global(svg) {

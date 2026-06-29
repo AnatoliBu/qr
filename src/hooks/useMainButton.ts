@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import '@/types/telegram';
 
 interface UseMainButtonOptions {
@@ -21,48 +21,40 @@ export function useMainButton({
   hapticFeedback = 'medium'
 }: UseMainButtonOptions) {
   const handleClick = useCallback(() => {
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.HapticFeedback.impactOccurred(hapticFeedback);
-    }
+    window.Telegram?.WebApp?.HapticFeedback.impactOccurred(hapticFeedback);
     onClick();
   }, [onClick, hapticFeedback]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.Telegram?.WebApp) {
+    const webApp = typeof window === 'undefined' ? undefined : window.Telegram?.WebApp;
+    if (!webApp) {
       return;
     }
 
-    const MainButton = window.Telegram.WebApp.MainButton;
+    const mainButton = webApp.MainButton;
 
-    // Configure button
-    MainButton.setParams({
+    // setParams already covers visibility and active state, so no extra
+    // show()/enable()/disable() calls are needed. Omit color keys when
+    // undefined so the client keeps its current colors instead of resetting.
+    mainButton.setParams({
       text,
-      color,
-      text_color: textColor,
       is_active: !disabled,
-      is_visible: true
+      is_visible: true,
+      ...(color !== undefined ? { color } : {}),
+      ...(textColor !== undefined ? { text_color: textColor } : {})
     });
 
-    // Show button
-    MainButton.show();
+    mainButton.onClick(handleClick);
 
-    if (disabled) {
-      MainButton.disable();
-    } else {
-      MainButton.enable();
-    }
-
-    // Attach click handler
-    MainButton.onClick(handleClick);
-
-    // Cleanup
     return () => {
-      MainButton.offClick(handleClick);
-      MainButton.hide();
+      mainButton.offClick(handleClick);
+      mainButton.hide();
     };
   }, [text, disabled, color, textColor, handleClick]);
 
-  return {
-    isAvailable: typeof window !== 'undefined' && !!window.Telegram?.WebApp
-  };
+  const [isAvailable] = useState(
+    () => typeof window !== 'undefined' && !!window.Telegram?.WebApp
+  );
+
+  return { isAvailable };
 }

@@ -4,16 +4,10 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import classNames from "classnames";
 import { GeneratorNew } from "@/components/GeneratorNew";
+import { triggerHaptic } from "@/components/generator/haptics";
 import { Skeleton } from "@/components/ui/Skeleton";
 import styles from "@/components/Generator.module.css";
 import "./page.css";
-
-// Haptic feedback helper
-function triggerHaptic(style: 'light' | 'medium' | 'heavy' = 'medium') {
-  if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-    window.Telegram.WebApp.HapticFeedback.impactOccurred(style);
-  }
-}
 
 // Code-split heavy components to reduce initial bundle size
 const BatchGenerator = dynamic(

@@ -45,6 +45,23 @@ export interface TelegramHapticFeedback {
   selectionChanged: () => void;
 }
 
+/**
+ * Known Telegram WebApp event names.
+ * Narrowed from a bare `string` so typos in `onEvent`/`offEvent` are caught.
+ */
+export type TelegramEventType =
+  | 'themeChanged'
+  | 'viewportChanged'
+  | 'mainButtonClicked'
+  | 'backButtonClicked'
+  | 'settingsButtonClicked'
+  | 'invoiceClosed'
+  | 'popupClosed'
+  | 'qrTextReceived'
+  | 'clipboardTextReceived'
+  | 'writeAccessRequested'
+  | 'contactRequested';
+
 export interface TelegramWebApp {
   ready: () => void;
   expand: () => void;
@@ -58,8 +75,8 @@ export interface TelegramWebApp {
   viewportStableHeight: number;
   MainButton: TelegramMainButton;
   HapticFeedback: TelegramHapticFeedback;
-  onEvent: (eventType: string, callback: () => void) => void;
-  offEvent: (eventType: string, callback: () => void) => void;
+  onEvent: (eventType: TelegramEventType, callback: () => void) => void;
+  offEvent: (eventType: TelegramEventType, callback: () => void) => void;
 }
 
 declare global {

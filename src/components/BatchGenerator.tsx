@@ -29,8 +29,12 @@ interface ParsedRow {
 interface WorkerProgress {
   processed: number;
   total: number;
-  progress: number;
 }
+
+type WorkerResponse =
+  | { id: string; progress: number; processed: number; total: number }
+  | { id: string; error: string }
+  | { id: string; done: true; blob: Blob; failed: number };
 
 const defaultDraft: BatchDraft = {
   format: "png",
@@ -59,7 +63,11 @@ async function parseCsv(file: File): Promise<Record<string, string>[]> {
       skipEmptyLines: true,
       dynamicTyping: false,
       complete: (result) => {
-        resolve(result.data.filter(Boolean));
+        const rows = result.data.filter(
+          (row): row is Record<string, string> =>
+            Boolean(row) && Object.values(row).some((value) => String(value ?? "").trim() !== "")
+        );
+        resolve(rows);
       },
       error: reject
     });
@@ -69,7 +77,11 @@ async function parseCsv(file: File): Promise<Record<string, string>[]> {
 async function parseXlsx(file: File): Promise<Record<string, string>[]> {
   const buffer = await file.arrayBuffer();
   const workbook = read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error("Пустой файл: нет ни одного листа");
+  }
+  const sheet = workbook.Sheets[sheetName];
   return utils.sheet_to_json(sheet, { raw: false, defval: "" }) as Record<string, string>[];
 }
 
@@ -79,6 +91,7 @@ function isQRType(value: string): value is QRType {
 
 export function BatchGenerator() {
   const workerRef = useRef<Worker | null>(null);
+  const activeJobRef = useRef<string | null>(null);
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState<WorkerProgress | null>(null);
@@ -89,31 +102,34 @@ export function BatchGenerator() {
   useEffect(() => {
     const instance = new Worker(new URL('@/workers/batchGenerator.worker.ts', import.meta.url));
     workerRef.current = instance;
-    instance.onmessage = (event: MessageEvent<any>) => {
+    instance.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const payload = event.data;
-      if (payload.error) {
+      // Ignore responses from superseded jobs (stale results / file replaced mid-run).
+      if (payload.id !== activeJobRef.current) {
+        return;
+      }
+      if ("error" in payload) {
+        activeJobRef.current = null;
         setError(payload.error);
         setProgress(null);
         return;
       }
-      if (payload.progress !== undefined) {
-        setProgress({
-          processed: payload.processed,
-          total: payload.total,
-          progress: payload.progress
-        });
-      }
-      if (payload.done) {
-        const blob = new Blob([payload.buffer], { type: "application/zip" });
-        const url = URL.createObjectURL(blob);
+      if ("done" in payload) {
+        activeJobRef.current = null;
+        const url = URL.createObjectURL(payload.blob);
         setDownloadUrl((prev) => {
           if (prev) {
             URL.revokeObjectURL(prev);
           }
           return url;
         });
+        if (payload.failed > 0) {
+          setError(`Готово с ошибками: ${payload.failed} строк не сгенерировано (см. errors.txt в архиве)`);
+        }
         setProgress(null);
+        return;
       }
+      setProgress({ processed: payload.processed, total: payload.total });
     };
     return () => {
       instance.terminate();
@@ -129,6 +145,8 @@ export function BatchGenerator() {
   }, [downloadUrl]);
 
   const handleFile = useCallback(async (file: File) => {
+    // Supersede any in-flight job so its late "done"/"error" is ignored.
+    activeJobRef.current = null;
     setError(null);
     setDownloadUrl(null);
     setProgress(null);
@@ -141,8 +159,9 @@ export function BatchGenerator() {
       } else {
         rowsData = await parseXlsx(file);
       }
-    } catch (err: any) {
-      setError(err?.message ?? "Не удалось прочитать файл");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Не удалось прочитать файл";
+      setError(message);
       setRows([]);
       return;
     }
@@ -180,9 +199,8 @@ export function BatchGenerator() {
         }
       }
 
-      const slugCandidate =
-        raw.slug || raw.SLUG || raw.filename || raw.name || Object.values(raw)[1] || `row-${index + 1}`;
-      const slug = slugify(slugCandidate ?? `row-${index + 1}`);
+      const slugCandidate = raw.slug || raw.SLUG || raw.filename || raw.name || `row-${index + 1}`;
+      const slug = slugify(slugCandidate);
 
       return {
         index: index + 1,
@@ -207,7 +225,10 @@ export function BatchGenerator() {
       return;
     }
 
+    setError(null);
+    setDownloadUrl(null);
     const jobId = crypto.randomUUID();
+    activeJobRef.current = jobId;
     workerRef.current.postMessage({
       id: jobId,
       items: validRows.map((row) => ({
@@ -226,7 +247,7 @@ export function BatchGenerator() {
         chunk: draft.chunk
       }
     });
-    setProgress({ processed: 0, total: validRows.length, progress: 0 });
+    setProgress({ processed: 0, total: validRows.length });
   }, [draft, validRows]);
 
   const download = useCallback(() => {
@@ -255,7 +276,7 @@ export function BatchGenerator() {
           <h2>Массовая генерация</h2>
           <p>Импорт CSV/XLSX, предпросмотр и ZIP c PNG/SVG.</p>
         </div>
-        <span className="badge">10k строк, чанки {draft.chunk}</span>
+        <span className="badge">10k строк, обновление каждые {draft.chunk}</span>
       </header>
 
       <div className="batch">
@@ -341,7 +362,7 @@ export function BatchGenerator() {
             </label>
 
             <label>
-              Размер чанка
+              Частота обновления прогресса
               <input
                 type="number"
                 min={50}
@@ -355,17 +376,30 @@ export function BatchGenerator() {
           <button type="button" className="primary" onClick={generate} disabled={progress !== null}>
             Сформировать ZIP ({validRows.length})
           </button>
-          {progress ? (
-            <p className="progress">
-              Обработано {progress.processed}/{progress.total} ({Math.round(progress.progress * 100)}%)
-            </p>
-          ) : null}
+          <div aria-live="polite">
+            {progress ? (
+              <p
+                className="progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={progress.total}
+                aria-valuenow={progress.processed}
+              >
+                Обработано {progress.processed}/{progress.total} (
+                {progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0}%)
+              </p>
+            ) : null}
+          </div>
           {downloadUrl ? (
             <button type="button" className="secondary" onClick={download}>
               Скачать ZIP
             </button>
           ) : null}
-          {error ? <p className="error-text">{error}</p> : null}
+          {error ? (
+            <p className="error-text" role="alert" aria-live="assertive">
+              {error}
+            </p>
+          ) : null}
         </div>
 
         <div className="batch__preview">

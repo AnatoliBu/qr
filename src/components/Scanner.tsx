@@ -1,17 +1,33 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import type { TelegramWebApp } from "@/types/telegram";
+import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 
 interface ScanResult {
+  id: string;
   text: string;
   timestamp: number;
   source: "camera" | "file";
 }
 
+function createResult(text: string, source: ScanResult["source"]): ScanResult {
+  return {
+    id: crypto.randomUUID(),
+    text,
+    timestamp: Date.now(),
+    source
+  };
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
+
 export function Scanner() {
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
+  const mountedRef = useRef(true);
+  const stopRequestedRef = useRef(false);
   const [active, setActive] = useState(false);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -29,20 +45,33 @@ export function Scanner() {
     return /iphone|ipad|ipod|android/i.test(ua);
   }, []);
 
-  const stopCamera = useCallback(() => {
+  // Centralised teardown: stop the ZXing decode loop (releases the stream)
+  // and, belt-and-suspenders, stop any remaining tracks and detach srcObject.
+  const teardownCamera = useCallback(() => {
+    controlsRef.current?.stop();
+    controlsRef.current = null;
     if (videoRef.current?.srcObject) {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
     }
-    videoRef.current && (videoRef.current.srcObject = null);
-    setActive(false);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
   }, []);
 
+  const stopCamera = useCallback(() => {
+    stopRequestedRef.current = true;
+    teardownCamera();
+    setActive(false);
+  }, [teardownCamera]);
+
   useEffect(() => {
+    mountedRef.current = true;
     readerRef.current = new BrowserMultiFormatReader();
     return () => {
-      stopCamera();
+      mountedRef.current = false;
+      teardownCamera();
     };
-  }, [stopCamera]);
+  }, [teardownCamera]);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,12 +103,12 @@ export function Scanner() {
     const url = URL.createObjectURL(file);
     try {
       const result = await readerRef.current.decodeFromImageUrl(url);
-      setResults((prev) => [
-        { text: result.getText(), timestamp: Date.now(), source },
-        ...prev
-      ].slice(0, 20));
-    } catch (err: any) {
-      setError(err?.message ?? "Файл не содержит QR-код");
+      if (!mountedRef.current) return;
+      setResults((prev) => [createResult(result.getText(), source), ...prev].slice(0, 20));
+    } catch (err: unknown) {
+      if (mountedRef.current) {
+        setError(errorMessage(err, "Файл не содержит QR-код"));
+      }
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -94,20 +123,29 @@ export function Scanner() {
       input.style.display = "none";
 
       const cleanup = () => {
+        input.removeEventListener("change", onChange);
+        window.removeEventListener("focus", onWindowFocus);
         input.value = "";
-        if (input.parentNode) {
-          input.parentNode.removeChild(input);
-        }
+        input.parentNode?.removeChild(input);
       };
-
-      input.addEventListener("change", (event) => {
-        const file = (event.target as HTMLInputElement).files?.[0];
+      const onChange = () => {
+        const file = input.files?.[0];
         if (file) {
           void handleFile(file, "camera");
         }
         cleanup();
-      });
+      };
+      // If the user cancels the picker, "change" never fires but the window
+      // regains focus — use that to remove the orphaned detached input.
+      const onWindowFocus = () => {
+        // Defer so a real "change" (which also refocuses) runs first.
+        setTimeout(() => {
+          if (input.parentNode) cleanup();
+        }, 0);
+      };
 
+      input.addEventListener("change", onChange);
+      window.addEventListener("focus", onWindowFocus, { once: true });
       document.body.appendChild(input);
       input.click();
       return;
@@ -120,26 +158,43 @@ export function Scanner() {
       return;
     }
     setError(null);
+    stopRequestedRef.current = false;
     try {
       const devices = await BrowserMultiFormatReader.listVideoInputDevices();
       const first = devices[0]?.deviceId ?? undefined;
+      const controls = await readerRef.current.decodeFromVideoDevice(
+        first,
+        videoRef.current,
+        (result, decodeError) => {
+          if (result) {
+            const text = result.getText();
+            setResults((prev) => {
+              // Dedupe consecutive identical scans from the continuous loop.
+              if (prev[0]?.text === text) return prev;
+              return [createResult(text, "camera"), ...prev].slice(0, 20);
+            });
+          }
+          if (decodeError && decodeError.name !== "NotFoundException") {
+            setError(decodeError.message ?? "Ошибка сканирования");
+          }
+        }
+      );
+      // If the component unmounted or the user pressed Stop while we awaited,
+      // the controls were assigned after teardown ran — stop them now.
+      if (stopRequestedRef.current || !mountedRef.current) {
+        controls.stop();
+        return;
+      }
+      controlsRef.current = controls;
       setActive(true);
-      await readerRef.current.decodeFromVideoDevice(first, videoRef.current, (result, error) => {
-        if (result) {
-          setResults((prev) => [
-            { text: result.getText(), timestamp: Date.now(), source: "camera" as const },
-            ...prev
-          ].slice(0, 20));
-        }
-        if (error && error.name !== "NotFoundException") {
-          setError(error.message ?? "Ошибка сканирования");
-        }
-      });
-    } catch (err: any) {
-      setError(err?.message ?? "Не удалось получить доступ к камере");
-      setActive(false);
+    } catch (err: unknown) {
+      teardownCamera();
+      if (mountedRef.current) {
+        setError(errorMessage(err, "Не удалось получить доступ к камере"));
+        setActive(false);
+      }
     }
-  }, [handleFile, hasCamera, isMobile]);
+  }, [handleFile, hasCamera, isMobile, teardownCamera]);
 
   return (
     <section className="card">
@@ -152,7 +207,14 @@ export function Scanner() {
 
       <div className="scanner">
         <div className="scanner__video">
-          <video ref={videoRef} playsInline muted autoPlay className={active ? "active" : ""} />
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            autoPlay
+            aria-label="Предпросмотр камеры"
+            className={active ? "active" : ""}
+          />
           <div className="scanner__controls">
             {active ? (
               <button type="button" onClick={stopCamera} className="secondary">
@@ -168,6 +230,7 @@ export function Scanner() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                aria-label="Загрузить изображение с QR-кодом"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (file) {
@@ -188,8 +251,14 @@ export function Scanner() {
           ) : (
             <ul>
               {results.map((item) => (
-                <li key={item.timestamp + item.text}>
-                  <span className="pill pill__small">{item.source === "camera" ? "📷" : "🖼️"}</span>
+                <li key={item.id}>
+                  <span
+                    className="pill pill__small"
+                    role="img"
+                    aria-label={item.source === "camera" ? "Источник: камера" : "Источник: изображение"}
+                  >
+                    {item.source === "camera" ? "📷" : "🖼️"}
+                  </span>
                   <code>{item.text}</code>
                   <small>{new Date(item.timestamp).toLocaleTimeString()}</small>
                 </li>

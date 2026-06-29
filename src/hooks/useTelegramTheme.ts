@@ -5,23 +5,28 @@ import { TelegramThemeParams, TelegramWebApp } from '@/types/telegram';
 import '@/types/telegram';
 
 const getTelegramWebApp = (): TelegramWebApp | undefined =>
-  (typeof window === 'undefined' ? undefined : window.Telegram?.WebApp);
+  typeof window === 'undefined' ? undefined : window.Telegram?.WebApp;
 
 export function useTelegramTheme() {
-  const webApp = getTelegramWebApp();
-  const [theme, setTheme] = useState<TelegramThemeParams>(() => webApp?.themeParams ?? {});
-  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(
-    () => webApp?.colorScheme ?? 'light'
-  );
+  // Initialise to SSR-matching defaults so the first client render matches the
+  // server output (avoids hydration mismatch), then sync from Telegram in the
+  // effect below.
+  const [theme, setTheme] = useState<TelegramThemeParams>({});
+  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>('light');
+  const [available, setAvailable] = useState(false);
+  const [platform, setPlatform] = useState('unknown');
 
   useEffect(() => {
+    const webApp = getTelegramWebApp();
     if (!webApp) {
       return;
     }
 
     const updateTheme = () => {
       setTheme({ ...webApp.themeParams });
-      setColorScheme(webApp.colorScheme);
+      setColorScheme(webApp.colorScheme ?? 'light');
+      setAvailable(true);
+      setPlatform(webApp.platform ?? 'unknown');
     };
 
     updateTheme();
@@ -30,12 +35,12 @@ export function useTelegramTheme() {
     return () => {
       webApp.offEvent?.('themeChanged', updateTheme);
     };
-  }, [webApp]);
+  }, []);
 
   return {
     theme,
     colorScheme,
-    isAvailable: Boolean(webApp),
-    platform: webApp?.platform ?? 'unknown'
+    isAvailable: available,
+    platform
   };
 }
