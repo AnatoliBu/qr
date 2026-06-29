@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
+import { decodeQr } from "@/lib/decodeQr";
 
 interface ScanResult {
   id: string;
@@ -98,19 +99,19 @@ export function Scanner() {
   }, []);
 
   const handleFile = useCallback(async (file: File, source: ScanResult["source"] = "file") => {
-    if (!readerRef.current) return;
     setError(null);
-    const url = URL.createObjectURL(file);
     try {
-      const result = await readerRef.current.decodeFromImageUrl(url);
+      const text = await decodeQr(file);
       if (!mountedRef.current) return;
-      setResults((prev) => [createResult(result.getText(), source), ...prev].slice(0, 20));
+      if (text === null) {
+        setError("Файл не содержит QR-код");
+        return;
+      }
+      setResults((prev) => [createResult(text, source), ...prev].slice(0, 20));
     } catch (err: unknown) {
       if (mountedRef.current) {
         setError(errorMessage(err, "Файл не содержит QR-код"));
       }
-    } finally {
-      URL.revokeObjectURL(url);
     }
   }, []);
 

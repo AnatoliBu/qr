@@ -33,13 +33,10 @@ export default function HomePage() {
 
   return (
     <main className="page">
-      <div className={styles.header}>
-        <h1 className={styles.headerTitle}>QR Suite</h1>
-        <p className={styles.headerSubtitle}>Генератор, пакетная сборка и сканер QR-кодов</p>
-      </div>
-
-      <div className={styles.tabs}>
+      <div className={classNames(styles.tabs, styles.modeSwitch)} role="tablist" aria-label="Режим">
         <button
+          role="tab"
+          aria-selected={activeTab === "generator"}
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "generator" })}
           onClick={() => {
             setActiveTab("generator");
@@ -49,15 +46,19 @@ export default function HomePage() {
           🎨 Генератор
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === "batch"}
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "batch" })}
           onClick={() => {
             setActiveTab("batch");
             triggerHaptic('light');
           }}
         >
-          📦 Пакетная
+          📦 Пакет
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === "scanner"}
           className={classNames(styles.tab, { [styles.tabActive]: activeTab === "scanner" })}
           onClick={() => {
             setActiveTab("scanner");

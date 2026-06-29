@@ -1,6 +1,7 @@
 import classNames from "classnames";
 import { QR_SYSTEM } from "@/lib/qrConstants";
 import styles from "../Generator.module.css";
+import { LOGO_SIZE_LIMITS } from "./constants";
 import type { ErrorCorrection, ExportFormat, StyleOptions } from "./types";
 
 interface AdvancedPanelProps {
@@ -68,7 +69,8 @@ export function AdvancedPanel({
         </select>
         <div className={styles.rangeHint}>
           Проценты показывают, какую часть QR-кода можно закрыть или испортить, чтобы он всё равно
-          считывался.
+          считывался. Чем выше уровень — тем крупнее допустимый логотип: макс{" "}
+          {LOGO_SIZE_LIMITS[style.errorCorrection]}% при текущем {style.errorCorrection}.
         </div>
       </div>
 

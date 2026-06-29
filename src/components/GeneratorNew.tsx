@@ -18,10 +18,12 @@ import {
   fieldKey
 } from "./generator/constants";
 import { degreesToRadians, getContrastRatio } from "./generator/colorUtils";
-import { triggerHaptic } from "./generator/haptics";
+import { notifyHaptic, triggerHaptic } from "./generator/haptics";
 import { migrateDraft } from "./generator/migrateDraft";
 import { spacingExtension } from "./generator/svgExtension";
+import { Toast } from "./generator/Toast";
 import { useQrPreview } from "./generator/useQrPreview";
+import { useReadabilityCheck } from "./generator/useReadabilityCheck";
 import { validate } from "./generator/validate";
 import type {
   ExportFormat,
@@ -49,8 +51,15 @@ export function GeneratorNew() {
 
   const [activeTab, setActiveTab] = useState<"content" | "style" | "advanced">("content");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [byteLength, setByteLength] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  // Transient confirmation toast. `toastKey` lets the same message re-fire.
+  const [toast, setToast] = useState("");
+  const [toastKey, setToastKey] = useState(0);
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    setToastKey((key) => key + 1);
+  }, []);
 
   const { containerRef, ctor, ready, render } = useQrPreview();
 
@@ -215,16 +224,59 @@ export function GeneratorNew() {
     return scoped;
   }, [draft.formValues, draft.type, activeDefinition.fields]);
 
+  // Validation is derived from the live form, not imperative state, so the
+  // encoded-size label and payload status always reflect current input and
+  // never get reset to a stale value by regenerate()/switchType()/export.
+  const validation = useMemo(
+    () => validate(activeDefinition, formValues),
+    [activeDefinition, formValues]
+  );
+  const byteLength = validation.byteLength;
+
   const contrastRatio = useMemo(
     () => getContrastRatio(draft.style.foreground, draft.style.background),
     [draft.style.foreground, draft.style.background]
   );
   const showContrastWarning = contrastRatio > 0 && contrastRatio < 4.5;
 
+  const readability = useReadabilityCheck({
+    ctor,
+    payload: validation.payload,
+    valid: validation.valid,
+    style: draft.style
+  });
+
+  // Compact "what you'll get" line, mirrors the export settings.
+  const outputSummary = useMemo(
+    () =>
+      `${draft.style.exportSize}px · ${draft.style.exportFormat.toUpperCase()} · поля ${draft.style.marginPercent}% · EC ${draft.style.errorCorrection}`,
+    [
+      draft.style.exportSize,
+      draft.style.exportFormat,
+      draft.style.marginPercent,
+      draft.style.errorCorrection
+    ]
+  );
+
+  const readabilityChip = useMemo(() => {
+    switch (readability) {
+      case "ok":
+        return { className: styles.statusChipOk, text: "✅ Читается" };
+      case "poor":
+        return {
+          className: styles.statusChipPoor,
+          text: "⚠️ Плохо читается — подними контраст / EC / уменьши логотип"
+        };
+      case "checking":
+        return { className: styles.statusChipChecking, text: "⏳ Проверка читаемости…" };
+      default:
+        return null;
+    }
+  }, [readability]);
+
   const regenerate = useCallback(
     (haptics = true): boolean => {
-      const result = validate(activeDefinition, formValues);
-      setByteLength(result.byteLength);
+      const result = validation;
       setErrors(result.errors);
 
       if (!result.valid) {
@@ -240,7 +292,7 @@ export function GeneratorNew() {
       render(buildQrOptions(draft.style, { size: previewSize, margin: previewMargin, data }));
       return true;
     },
-    [activeDefinition, formValues, draft.style, render]
+    [validation, draft.style, render]
   );
 
   // Перерисовка preview при готовности инстанса и любых изменениях стиля/данных.
@@ -252,9 +304,8 @@ export function GeneratorNew() {
   const exportBlob = useCallback(
     async (format: ExportFormat) => {
       if (!ctor) return;
-      // Валидация без перерисовки preview.
-      const result = validate(activeDefinition, formValues);
-      setByteLength(result.byteLength);
+      // Валидация без перерисовки preview (берём актуальный derived-результат).
+      const result = validation;
       setErrors(result.errors);
       if (!result.valid) {
         triggerHaptic("light");
@@ -302,6 +353,8 @@ export function GeneratorNew() {
                 title: "QR код",
                 text: payload
               });
+              notifyHaptic("success");
+              showToast("✓ QR сохранён");
               return;
             } catch (error) {
               if (error instanceof DOMException && error.name === "AbortError") {
@@ -320,6 +373,8 @@ export function GeneratorNew() {
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+          notifyHaptic("success");
+          showToast("✓ QR сохранён");
         } finally {
           URL.revokeObjectURL(url);
         }
@@ -327,7 +382,7 @@ export function GeneratorNew() {
         setIsLoading(false);
       }
     },
-    [ctor, activeDefinition, formValues, draft.style]
+    [ctor, validation, draft.style, showToast]
   );
 
   return (
@@ -335,6 +390,14 @@ export function GeneratorNew() {
       <div className={classNames(styles.qrPreview, "preview")}>
         <div className={classNames(styles.qrCode, "preview__canvas")}>
           <div ref={containerRef} className={styles.qrCanvas} />
+        </div>
+        <div className={styles.previewMeta}>
+          {readabilityChip && (
+            <span className={classNames(styles.statusChip, readabilityChip.className)} role="status">
+              {readabilityChip.text}
+            </span>
+          )}
+          <span className={styles.outputSummary}>{outputSummary}</span>
         </div>
       </div>
 
@@ -407,20 +470,14 @@ export function GeneratorNew() {
 
       <div className={classNames(styles.actionButtons, "preview__actions")}>
         <button
-          className={classNames(styles.btn, styles.btnSecondary)}
-          onClick={() => {
-            regenerate();
-          }}
-        >
-          👁️ Превью
-        </button>
-        <button
           className={classNames(styles.btn, styles.btnPrimary)}
           onClick={() => exportBlob(draft.style.exportFormat)}
         >
           ⬇️ Скачать QR
         </button>
       </div>
+
+      <Toast message={toast} trigger={toastKey} onDismiss={() => setToast("")} />
 
       {isLoading && (
         <div className={classNames(styles.loading, styles.loadingActive)}>

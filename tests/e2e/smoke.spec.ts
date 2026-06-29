@@ -105,7 +105,7 @@ test('scanner tab exposes camera and upload controls', async ({ page }, testInfo
 
   await page.goto(APP_URL, { waitUntil: 'networkidle' });
 
-  const scannerTab = page.getByRole('button', { name: '📷 Сканер' });
+  const scannerTab = page.getByRole('tab', { name: '📷 Сканер' });
   await scannerTab.waitFor({ state: 'visible', timeout: 30_000 });
   await scannerTab.click();
   await expect(page.getByRole('heading', { name: 'Клиентский сканер' })).toBeVisible();
