@@ -41,7 +41,7 @@ test("Wi-Fi validation checks encryption, password and hidden flag", () => {
   const passwordField = def.fields.find((field) => field.name === "password");
   const hiddenField = def.fields.find((field) => field.name === "hidden");
 
-  assert.equal(authField?.validate?.("wpa3", {}), "Допустимо: WPA, WPA2, WEP или nopass");
+  assert.equal(authField?.validate?.("wpa3", {}), "Допустимо: WPA, WPA2, WEP, NOPASS");
   assert.equal(authField?.validate?.("WEP", {}), null);
 
   assert.equal(

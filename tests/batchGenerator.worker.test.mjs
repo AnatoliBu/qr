@@ -42,24 +42,36 @@ const loadWorkerModule = async () => {
   return { exports: moduleScope.exports, self: sandboxSelf };
 };
 
-test("createSegments returns byte segments as Uint8Array", async () => {
+test("worker uses qrcode auto-mode (no forced byte segments)", async () => {
   const { exports } = await loadWorkerModule();
-  const segments = exports.createSegments("Привет");
-
-  assert.equal(Array.isArray(segments), true);
-  assert.equal(segments[0].mode, "byte");
-  assert.ok(segments[0].data instanceof Uint8Array);
-  assert.deepEqual([...segments[0].data], [...new TextEncoder().encode("Привет")]);
+  // createSegments was removed so the qrcode library auto-selects the densest
+  // encoding mode (numeric/alphanumeric/byte) per payload. The worker now passes
+  // the raw payload straight to QRCode.toString/toDataURL.
+  assert.equal(
+    exports.createSegments,
+    undefined,
+    "createSegments should no longer be exported (auto-mode is used instead)"
+  );
 });
 
-test("QRCode accepts worker segments for SVG generation", async () => {
-  const { exports } = await loadWorkerModule();
-  const svg = await QRCode.toString(exports.createSegments("Hello"), {
+test("QRCode renders SVG and PNG from a raw payload (the worker's call path)", async () => {
+  const opts = { width: 128, errorCorrectionLevel: "M", margin: 4 };
+
+  const svg = await QRCode.toString("Hello", { ...opts, type: "svg" });
+  assert.match(svg, /<svg/);
+
+  const dataUrl = await QRCode.toDataURL("Hello", opts);
+  assert.match(dataUrl, /^data:image\/png;base64,/);
+});
+
+test("auto-mode encodes Cyrillic (UTF-8) payloads without segments", async () => {
+  // Removing createSegments must not regress UTF-8 payloads — qrcode handles them
+  // in byte mode automatically.
+  const svg = await QRCode.toString("Привет", {
     type: "svg",
     width: 128,
     errorCorrectionLevel: "M",
     margin: 4
   });
-
   assert.match(svg, /<svg/);
 });

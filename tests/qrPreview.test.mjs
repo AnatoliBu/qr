@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const cssPath = new URL("../src/app/page.css", import.meta.url);
+// The QR preview is rendered inside the generator's CSS-module styles.
+// (Legacy `.preview__canvas` rules in page.css are no longer used by the
+// refactored generator, which renders into `.qrPreview` / `.qrCode` / `.qrCanvas`.)
+const cssPath = new URL("../src/components/Generator.module.css", import.meta.url);
 
 const normalizeWhitespace = (value) => value.replace(/\s+/g, " ").trim();
 
@@ -16,11 +19,7 @@ const parseDeclarations = (block) =>
       if (!valueParts.length) {
         return acc;
       }
-
-      const propertyName = property.trim();
-      const value = normalizeWhitespace(valueParts.join(":"));
-
-      acc[propertyName] = value;
+      acc[property.trim()] = normalizeWhitespace(valueParts.join(":"));
       return acc;
     }, {});
 
@@ -28,19 +27,15 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const buildSelectorPattern = (selector) => {
   let pattern = "";
-
   for (const char of selector) {
     if (/\s/.test(char)) {
-      if (!pattern.endsWith("\\s+")) {
-        pattern += "\\s+";
-      }
+      if (!pattern.endsWith("\\s+")) pattern += "\\s+";
     } else if (char === ">") {
       pattern += "\\s*>\\s*";
     } else {
       pattern += escapeRegex(char);
     }
   }
-
   return pattern;
 };
 
@@ -48,153 +43,91 @@ const getRule = (css, selectors) => {
   const pattern = selectors
     .map((selector) => buildSelectorPattern(normalizeWhitespace(selector)))
     .join("\\s*,\\s*");
-
-  const regex = new RegExp(`${pattern}\\s*{([^}]*)}`, "s");
-  const match = css.match(regex);
-
-  if (!match) {
-    return null;
-  }
-
+  const match = css.match(new RegExp(`${pattern}\\s*{([^}]*)}`, "s"));
+  if (!match) return null;
   const declarations = match[1].trim();
-  return {
-    declarations,
-    declarationMap: parseDeclarations(declarations),
-  };
+  return { declarations, declarationMap: parseDeclarations(declarations) };
 };
 
 const loadCss = async () => readFile(cssPath, "utf8");
 
+// Selector for the elements qr-code-styling injects (a <div> wrapper containing a
+// <canvas> or <svg>). Crop-prevention lives on the canvas/svg rule.
+const CANVAS_CHILDREN = [".qrCanvas :global(canvas)", ".qrCanvas :global(svg)"];
+
 /**
- * Tests for QR code preview rendering
- *
- * These tests ensure that the QR code preview container has the correct
- * CSS styles to display the QR code fully, regardless of its size, shape,
- * or other settings.
+ * Tests for QR code preview rendering — ensure the preview container and the
+ * injected canvas/svg are sized so the QR is shown in full (never cropped),
+ * regardless of size, shape, or other settings.
  */
 
-test("preview__canvas has container styles for proper QR display", async () => {
+test("qr preview frame uses a centered column layout", async () => {
   const css = await loadCss();
-  const rule = getRule(css, [".preview__canvas"]);
+  const rule = getRule(css, [".qrPreview"]);
 
-  assert.ok(rule, ".preview__canvas rule should be defined");
-
-  assert.equal(rule.declarationMap.width, "100%", ".preview__canvas should have width: 100%");
-  assert.equal(
-    rule.declarationMap["max-width"],
-    "300px",
-    ".preview__canvas should have max-width: 300px"
-  );
-  assert.equal(
-    rule.declarationMap["aspect-ratio"],
-    "1 / 1",
-    ".preview__canvas should maintain a 1 / 1 aspect ratio"
-  );
-  assert.equal(rule.declarationMap.display, "flex", ".preview__canvas should use display: flex");
-  assert.equal(
-    rule.declarationMap["align-items"],
-    "center",
-    ".preview__canvas should center items vertically"
-  );
-  assert.equal(
-    rule.declarationMap["justify-content"],
-    "center",
-    ".preview__canvas should center items horizontally"
-  );
-});
-
-test("preview__canvas child elements have responsive sizing", async () => {
-  const css = await loadCss();
-  const rule = getRule(css, [
-    ".preview__canvas > div",
-    ".preview__canvas canvas",
-    ".preview__canvas svg",
-  ]);
-
-  assert.ok(rule, ".preview__canvas > div, canvas, svg rule should be defined");
-
-  assert.equal(
-    rule.declarationMap.width,
-    "100% !important",
-    ".preview__canvas > div, canvas, svg should have width: 100% !important"
-  );
-  assert.equal(
-    rule.declarationMap.height,
-    "100% !important",
-    ".preview__canvas > div, canvas, svg should have height: 100% !important"
-  );
-  assert.equal(
-    rule.declarationMap["max-width"],
-    "100% !important",
-    ".preview__canvas > div, canvas, svg should have max-width: 100% !important"
-  );
-  assert.equal(
-    rule.declarationMap["max-height"],
-    "100% !important",
-    ".preview__canvas > div, canvas, svg should have max-height: 100% !important"
-  );
-  assert.equal(
-    rule.declarationMap["object-fit"],
-    "contain",
-    ".preview__canvas > div, canvas, svg should have object-fit: contain"
-  );
-  assert.equal(
-    rule.declarationMap.display,
-    "block",
-    ".preview__canvas > div, canvas, svg should have display: block"
-  );
-});
-
-test("preview container exists and has proper styling", async () => {
-  const css = await loadCss();
-  const rule = getRule(css, [".preview"]);
-
-  assert.ok(rule, ".preview rule should be defined");
-  assert.equal(rule.declarationMap.display, "flex", ".preview should use display: flex");
+  assert.ok(rule, ".qrPreview rule should be defined");
+  assert.equal(rule.declarationMap.display, "flex", ".qrPreview should use display: flex");
   assert.equal(
     rule.declarationMap["flex-direction"],
     "column",
-    ".preview should have flex-direction: column"
+    ".qrPreview should stack children in a column"
   );
-  assert.equal(rule.declarationMap["align-items"], "center", ".preview should center items");
+  assert.equal(
+    rule.declarationMap["align-items"],
+    "center",
+    ".qrPreview should center children horizontally"
+  );
 });
 
-test("CSS prevents QR code from being cropped", async () => {
+test("qr code frame keeps a square aspect ratio and centers content", async () => {
   const css = await loadCss();
-  const rule = getRule(css, [
-    ".preview__canvas > div",
-    ".preview__canvas canvas",
-    ".preview__canvas svg",
-  ]);
+  const rule = getRule(css, [".qrCode"]);
 
-  assert.ok(rule, ".preview__canvas > div, canvas, svg rule should be defined");
+  assert.ok(rule, ".qrCode rule should be defined");
+  assert.equal(rule.declarationMap["aspect-ratio"], "1 / 1", ".qrCode should be square");
+  assert.equal(rule.declarationMap.display, "flex", ".qrCode should use display: flex");
+  assert.equal(rule.declarationMap["align-items"], "center");
+  assert.equal(rule.declarationMap["justify-content"], "center");
+});
 
-  assert.ok(
-    rule.declarationMap.width?.includes("!important"),
-    "width should use !important"
-  );
-  assert.ok(
-    rule.declarationMap.height?.includes("!important"),
-    "height should use !important"
-  );
+test("injected canvas/svg are sized responsively (no crop)", async () => {
+  const css = await loadCss();
+  const rule = getRule(css, CANVAS_CHILDREN);
+
+  assert.ok(rule, ".qrCanvas canvas/svg rule should be defined");
+  assert.equal(rule.declarationMap.width, "100% !important");
+  assert.equal(rule.declarationMap.height, "100% !important");
+  assert.equal(rule.declarationMap["max-width"], "100% !important");
+  assert.equal(rule.declarationMap["max-height"], "100% !important");
+  assert.equal(rule.declarationMap["object-fit"], "contain");
+  assert.equal(rule.declarationMap.display, "block");
+});
+
+test("crop prevention forces sizing with !important", async () => {
+  const css = await loadCss();
+  const rule = getRule(css, CANVAS_CHILDREN);
+
+  assert.ok(rule, ".qrCanvas canvas/svg rule should be defined");
+  assert.ok(rule.declarationMap.width?.includes("!important"), "width should use !important");
+  assert.ok(rule.declarationMap.height?.includes("!important"), "height should use !important");
   assert.ok(
     rule.declarationMap["max-width"]?.includes("!important"),
     "max-width should use !important"
   );
+  assert.ok(
+    rule.declarationMap["max-height"]?.includes("!important"),
+    "max-height should use !important"
+  );
 });
 
-test("preview styles work for different QR code shapes", async () => {
+test("object-fit: contain handles different QR shapes", async () => {
   const css = await loadCss();
-  const rule = getRule(css, [
-    ".preview__canvas > div",
-    ".preview__canvas canvas",
-    ".preview__canvas svg",
-  ]);
+  const rule = getRule(css, CANVAS_CHILDREN);
 
-  assert.ok(rule, ".preview__canvas > div, canvas, svg rule should be defined");
+  assert.ok(rule, ".qrCanvas canvas/svg rule should be defined");
   assert.equal(
     rule.declarationMap["object-fit"],
     "contain",
-    "object-fit: contain should handle different shapes (square/circle)"
+    "object-fit: contain should handle square/circle dot shapes without cropping"
   );
 });
