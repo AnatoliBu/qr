@@ -20,18 +20,25 @@
  * (margin%), which the user controls. Crop-prevention lives in .qrCanvas below.
  */
 .qrPreview {
+  /* Pinned while scrolling settings so you always see what you're editing. */
+  position: sticky;
+  top: 0;
+  z-index: 5;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 16px;
+  padding: 10px;
   margin: 0 auto 16px;
-  width: min(100%, 420px);
-  max-width: min(420px, calc(100vw - 32px));
+  /* Compact card so the pinned preview leaves room for settings AND so the QR
+     fills it edge-to-edge — the only white is the QR's own quiet-zone (margin%). */
+  width: min(100%, 300px);
+  max-width: min(300px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
   background: var(--surface);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
 }
 
 .qrCode {
@@ -39,7 +46,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  width: min(100%, 320px);
+  /* Fill the card: margin=0 => QR reaches the edges (no stray white поля). */
+  width: 100%;
+  max-height: 40vh;
   aspect-ratio: 1 / 1;
   pointer-events: none;
   user-select: none;

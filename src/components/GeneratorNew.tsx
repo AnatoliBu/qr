@@ -387,8 +387,8 @@ export function GeneratorNew() {
 
   return (
     <section className={styles.generator}>
-      <div className={classNames(styles.qrPreview, "preview")}>
-        <div className={classNames(styles.qrCode, "preview__canvas")}>
+      <div className={styles.qrPreview}>
+        <div className={styles.qrCode}>
           <div ref={containerRef} className={styles.qrCanvas} />
         </div>
         <div className={styles.previewMeta}>
@@ -468,7 +468,7 @@ export function GeneratorNew() {
         onMarginChange={handleMarginChange}
       />
 
-      <div className={classNames(styles.actionButtons, "preview__actions")}>
+      <div className={styles.actionButtons}>
         <button
           className={classNames(styles.btn, styles.btnPrimary)}
           onClick={() => exportBlob(draft.style.exportFormat)}
