@@ -20,7 +20,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru">
+    // suppressHydrationWarning: the Telegram WebApp SDK mutates <html> style
+    // (--tg-viewport-height etc.) on the client before React hydrates — an
+    // intentional, expected server/client diff (not a bug to "fix").
+    <html lang="ru" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://telegram.org" />
         <Script

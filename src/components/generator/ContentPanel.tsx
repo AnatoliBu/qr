@@ -76,7 +76,7 @@ export function ContentPanel({
                   id={fieldId}
                   name={field.name}
                   data-testid={`qr-input-${field.name}`}
-                  className={classNames(styles.textarea, { error: hasError })}
+                  className={classNames(styles.textarea, { [styles.errorField]: hasError })}
                   aria-invalid={hasError}
                   aria-describedby={hasError ? errorId : undefined}
                   value={formValues[field.name] ?? ""}
@@ -91,7 +91,7 @@ export function ContentPanel({
                   type={
                     field.type === "email" ? "email" : field.type === "number" ? "number" : "text"
                   }
-                  className={classNames(styles.input, { error: hasError })}
+                  className={classNames(styles.input, { [styles.errorField]: hasError })}
                   aria-invalid={hasError}
                   aria-describedby={hasError ? errorId : undefined}
                   value={formValues[field.name] ?? ""}
@@ -99,13 +99,9 @@ export function ContentPanel({
                   placeholder={field.placeholder}
                 />
               )}
-              {field.helper && (
-                <small style={{ fontSize: "12px", opacity: 0.6, marginTop: "4px" }}>
-                  {field.helper}
-                </small>
-              )}
+              {field.helper && <small className={styles.rangeHint}>{field.helper}</small>}
               {hasError && (
-                <span id={errorId} className="error-text" role="alert">
+                <span id={errorId} className={styles.errorText} role="alert">
                   {errors[field.name]}
                 </span>
               )}
@@ -113,7 +109,7 @@ export function ContentPanel({
           );
         })}
         {errors.__payload && (
-          <span className="error-text" role="alert">
+          <span className={styles.errorText} role="alert">
             {errors.__payload}
           </span>
         )}

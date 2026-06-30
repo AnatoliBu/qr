@@ -22,9 +22,7 @@ export function ColorSwatch({ label, value, onChange, className, compact }: Colo
       {compact ? (
         <span className={styles.fieldTitle}>{label}</span>
       ) : (
-        <label className={styles.inputLabel} style={{ marginBottom: "8px" }}>
-          {label}
-        </label>
+        <label className={styles.inputLabel}>{label}</label>
       )}
       <div
         className={styles.colorPreview}

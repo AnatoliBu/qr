@@ -10,6 +10,41 @@ function decodeQr(buffer: Buffer): string | null {
   return code?.data ?? null;
 }
 
+/**
+ * Decode the CURRENT preview QR at an export-representative resolution.
+ *
+ * The on-screen preview is a small (~280px) thumbnail; jsQR needs enough pixels
+ * to bridge the gaps between separated modules (e.g. the "dots" style), which a
+ * thumbnail can't provide but the real 1024px export does. We rasterize the live
+ * preview SVG onto a white 640px canvas in-page and decode that — a faithful,
+ * size-independent check of whether the rendered QR is actually scannable.
+ */
+async function decodeCurrentPreview(page: Page, size = 640): Promise<string | null> {
+  const dataUrl = await page.evaluate(async (sz) => {
+    const svg = document.querySelector('[class*="qrPreview"] svg');
+    if (!svg) return null;
+    const xml = new XMLSerializer().serializeToString(svg);
+    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('svg image load failed'));
+      img.src = url;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = sz;
+    canvas.height = sz;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, sz, sz);
+    ctx.drawImage(img, 0, 0, sz, sz);
+    return canvas.toDataURL('image/png');
+  }, size);
+  if (!dataUrl) return null;
+  return decodeQr(Buffer.from(dataUrl.split(',')[1], 'base64'));
+}
+
 async function getPreviewCanvas(page: Page): Promise<Locator> {
   const container = page.locator('[class*="qrPreview"]').first();
   await container.waitFor({ state: 'visible', timeout: 30_000 });
@@ -59,11 +94,9 @@ test.describe('QR code scannability', () => {
       await expect(styleOption, `Style option "${label}" should be visible`).toBeVisible({ timeout: 30_000 });
       await styleOption.click();
 
-      await page.getByRole('button', { name: '⬇️ Скачать QR' }).click();
       await page.waitForTimeout(500);
 
-      const canvas = await getPreviewCanvas(page);
-      const qrData = decodeQr(await canvas.screenshot());
+      const qrData = await decodeCurrentPreview(page);
       expect(qrData, `QR with dot style "${label}" should be decodable`).toBe(testUrl);
     }
   });

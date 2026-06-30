@@ -22,3 +22,6 @@ public/workers/*.js.map
 /playwright/.cache/
 /screenshots/
 !/screenshots/README.md
+
+# playwright-cli scratch
+.playwright-cli/
